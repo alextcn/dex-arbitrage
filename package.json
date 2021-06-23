@@ -1,0 +1,22 @@
+{
+  "name": "box",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./scripts/run.js",
+  "scripts": {
+    "test": "npx hardhat test"
+  },
+  "author": "Alex Tkachenko",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^10.0.0"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/contracts": "^4.1.0",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.3.1",
+    "hardhat": "^2.4.1"
+  }
+}
