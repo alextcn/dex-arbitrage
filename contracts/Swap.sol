@@ -5,30 +5,27 @@ import '@uniswap/v2-periphery/contracts/UniswapV2Router02.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IERC20.sol';
 
 contract Swap {
-    IERC20 DAI;
+    IERC20 token0;
+    IERC20 token1;
     UniswapV2Router02 uniRouter;
 
-    constructor(address _DAI, address _uniRouter) public {
-        DAI = IERC20(_DAI);
+    constructor(address _uniRouter, address _token0, address _token1) public {
+        require(_token0 != _token1);
+        token0 = IERC20(_token0);
+        token1 = IERC20(_token1);
         uniRouter = UniswapV2Router02(payable(_uniRouter));
     }
 
-    // todo: need to approve amountIn DAI to Swap contract before calling this?
-    // Swaps DAI of sender for Ether
-    function swapDAI(uint amountIn) external {
-        // uint amountIn = 50 * 10 ** DAI.decimals();
-        
-        // transfer DAI from sender to this contract
-        require(DAI.transferFrom(msg.sender, address(this), amountIn), 'failed to transfer dai from sender');
-        
-        // approve Uniswap to transfer DAI from this contract
-        require(DAI.approve(address(uniRouter), amountIn), 'failed to approve dai to router');
+    function swapToken0(uint amountIn) external {
+        require(token0.allowance(msg.sender, address(this)) >= amountIn, 'not enough allowance');
+        require(token0.transferFrom(msg.sender, address(this), amountIn), 'failed to transfer dai');
+        require(token0.approve(address(uniRouter), amountIn), 'failed to approve dai to router');
 
-        // swap DAI from this contract to sender via Uniswap
         address[] memory path = new address[](2);
-        path[0] = address(DAI);
-        path[1] = uniRouter.WETH();
-        uniRouter.swapExactTokensForETH(amountIn, 0, path, msg.sender, block.timestamp);
+        path[0] = address(token0);
+        path[1] = address(token1);
+
+        uniRouter.swapExactTokensForTokens(amountIn, 0, path, msg.sender, block.timestamp);
     }
 
 }
