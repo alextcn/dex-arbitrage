@@ -3,6 +3,7 @@ pragma solidity =0.6.6;
 
 import '@uniswap/v2-periphery/contracts/UniswapV2Router02.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IERC20.sol';
+import '@uniswap/v2-periphery/contracts/libraries/UniswapV2Library.sol';
 
 contract Swap {
     IERC20 token0;
@@ -24,6 +25,8 @@ contract Swap {
         address[] memory path = new address[](2);
         path[0] = address(token0);
         path[1] = address(token1);
+
+        // UniswapV2Library.
 
         uniRouter.swapExactTokensForTokens(amountIn, 0, path, msg.sender, block.timestamp);
     }
