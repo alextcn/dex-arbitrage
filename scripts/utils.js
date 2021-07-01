@@ -8,6 +8,15 @@ function runScript(script) {
         })
 }
 
+function runApp(app) {
+    app()
+        .then(() => process.stdin.resume())
+        .catch(error => {
+            console.log(error)
+            process.exit(1)
+        })
+}
+
 async function logBalance(address, ...tokens) {
     console.log(`Balance of ${address}:`)
     const ethBalance = await ethers.provider.getBalance(address)
@@ -26,8 +35,12 @@ function addressEquals(address1, address2) {
     return address1.toUpperCase() === address2.toUpperCase()
 }
 
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
+
 module.exports = {
     runScript,
+    runApp,
     logBalance,
-    addressEquals
+    addressEquals,
+    delay
 }
