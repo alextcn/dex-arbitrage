@@ -14,11 +14,9 @@ const daiAddress = '0x6b175474e89094c44da98b954eedeac495271d0f'
 
 
 describe("Flashswap", function() {
-    const daiAmountOut = '1000'
+    const amountBorrowWeth = '5'
 
     var flashswapAddress
-    var weth
-    var dai
     var pair
 
     before(async function () {
@@ -27,9 +25,6 @@ describe("Flashswap", function() {
         const flashswap = await FlashSwap.deploy(uniFactoryAddress, sushiFactoryAddress, sushiRouterAddress)
         flashswapAddress = (await flashswap.deployed()).address
         console.log('FlashSwap deployed to:', flashswapAddress)
-
-        weth = await ethers.getContractAt('@uniswap/v2-periphery/contracts/interfaces/IERC20.sol:IERC20', wethAddress)
-        dai = await ethers.getContractAt('@uniswap/v2-periphery/contracts/interfaces/IERC20.sol:IERC20', daiAddress)
 
         const uniFactory = await ethers.getContractAt(
             '@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol:IUniswapV2Factory',
@@ -53,8 +48,8 @@ describe("Flashswap", function() {
 
         await utils.logBalance(senderAddress, wethAddress, daiAddress)
 
-        const amount0 = utils.addressEquals(await pair.token0(), daiAddress) ? daiAmountOut : '0'
-        const amount1 = utils.addressEquals(await pair.token1(), daiAddress) ? daiAmountOut : '0'
+        const amount0 = utils.addressEquals(await pair.token0(), wethAddress) ? amountBorrowWeth : '0'
+        const amount1 = utils.addressEquals(await pair.token1(), wethAddress) ? amountBorrowWeth : '0'
         const data = ethers.utils.randomBytes(2) // non-zero length random bytes are ok?
 
         console.log(`swapping:`)

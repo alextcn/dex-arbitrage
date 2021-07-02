@@ -12,26 +12,15 @@ import "hardhat/console.sol";
 contract FlashSwap {
     using SafeMath for uint;
 
-    address immutable factory;
+    address immutable uniFactory;
     address immutable sushiFactory;
     IUniswapV2Router02 immutable sushiRouter;
 
-    constructor(address _factory, address _sushiFactory, address _sushiRouter) public {
-        factory = _factory;
+    constructor(address _uniFactory, address _sushiFactory, address _sushiRouter) public {
+        uniFactory = _uniFactory;
         sushiFactory = _sushiFactory;
         sushiRouter = IUniswapV2Router02(_sushiRouter);
     }
-
-    // [+] 1. Calc required amount as amountOutMin for swap
-    // [+] 2. Call SuchiRouter.swapExactTokensForTokens(...)
-    //     - amountIn     -> _amount0/1 of tokens
-    //     - amountOutMin -> required amount to repay loan
-    //     - path         -> [ETH]/[DAI]
-    //     - to           -> this contract or uniswap (msg.sender)
-    // [+] 3. Send extra tokens from msg.sender or this contract to _sender (which one?)
-    // [.] Is 'this' FlashSwap or UniswapV2Pair?
-    // [ ] What about swap.deadline param?
-    // [ ] Transfer from token0 or token1?
 
     // This function is called byUniswapV2Pair contract after sending tokens to it.
     // Loan has to be repaid to msg.sender by the end of this function.
@@ -45,7 +34,7 @@ contract FlashSwap {
 
         address token0 = IUniswapV2Pair(msg.sender).token0();
         address token1 = IUniswapV2Pair(msg.sender).token1();
-        require(msg.sender == UniswapV2Library.pairFor(factory, token0, token1), "Unauthorized");
+        require(msg.sender == UniswapV2Library.pairFor(uniFactory, token0, token1), "Unauthorized");
 
         address[] memory path = new address[](2);
         path[0] = _amount0 == 0 ? token1 : token0; // token in
@@ -55,12 +44,9 @@ contract FlashSwap {
         address[] memory xpath = new address[](2);
         xpath[0] = path[1];
         xpath[1] = path[0];
-        uint amountRequired = UniswapV2Library.getAmountsIn(factory, amountIn, xpath)[0];
-        console.log("address(_sender) : %s", _sender);       // [sender EOA] 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-        console.log("address(msg.sender) : %s", msg.sender); // [WETH/DAI Uniswap pair contract] 0xa478c2975ab1ea89e8196811f51a7b7ade33eb11
-        console.log("address(this) : %s", address(this));    // [flashswap contract] 0x9d4454B023096f34B160D6B654540c56A1F81688
-        console.log("DAI amount in : %s", amountIn);         // 1000.000000000000000000 DAI
-        console.log("WETH amount out: %s", amountRequired);  // 0.375028280292508693 WETH
+        uint amountRequired = UniswapV2Library.getAmountsIn(uniFactory, amountIn, xpath)[0];
+        console.log("DAI amount borrowed : %s", amountIn);         // 168847.659628982957226212 DAI
+        console.log("WETH amount to return: %s", amountRequired);  //     80.587377847518766166 WETH
         
         // DAI amount in                    :  1000 DAI
         // WETH amount required (to Uniswap): 0.375 WETH
@@ -70,6 +56,18 @@ contract FlashSwap {
         // require(IERC20(path[0]).approve(address(sushiRouter), amountIn), "failed to approve amountIn tokens to sushi router");
         // uint amountSwapped = sushiRouter.swapExactTokensForTokens(amountIn, amountRequired, path, msg.sender, block.timestamp)[1];
         // console.log("WETH amount swapped: %s", amountSwapped);
+
+
+        // sushiRouter.swap(      129.324823465989037560, 271631.593358135442990898)
+        // sushi reserves: (109110545.739018368094370093,  52144.835879285270057318)
+        // uint numerator = reserveIn.mul(amountOut).mul(1000); // (109110545.74 * 129.3 * 1000) / ((52144.83 - 129.32) * 997) + 1
+        // uint denominator = reserveOut.sub(amountOut).mul(997); // 
+        // amountIn = (numerator / denominator).add(1); // 272043.8
+        // ...
+        // require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT'); // 272043.8 <= 271631.6 – FALSE
+        
+        // minimum amount of DAI required to swap for amountRequired of WETH on Sushiswap 
+        // is less than max amount of DAI i'm we have
 
         require(IERC20(path[0]).approve(address(sushiRouter), amountIn), "failed to approve amountIn tokens to sushi router");
         uint amountSwapped = sushiRouter.swapTokensForExactTokens(amountRequired, amountIn, path, msg.sender, block.timestamp)[0];

@@ -4,7 +4,7 @@ const { runScript, logBalance } = require("./utils")
 const swapAddress = '0x70e0bA845a1A0F2DA3359C97E0285013525FFC49'
 const holderAddress = '0x67e9a5894D2713553cd3cBC7D034Be9F1F830D3b'
 
-const amount = '5000000'
+const amount = '1000000'
 
 runScript(async function () {
     await hre.network.provider.request({
