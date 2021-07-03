@@ -4,7 +4,7 @@ const cfg = require('../config.json')
 const { ethers } = require("hardhat")
 const { BigNumber } = require("ethers")
 const { getPairPrice, getPairContract, priceDiffPercent } = require("./uni-utils")
-const { logBlock, timeTag } = require("./trade-utils")
+const { logBlock, timeTag, getAmountIn, maxTradeProfit } = require("./trade-utils")
 
 
 // TODO: calculate ideal trade size
@@ -18,7 +18,7 @@ function calcTradeSize(uniPrice, sushiPrice) {
     const priceDiff = d.mul(uniPrice.reserveA).mul(sushiPrice.reserveB).div(uniPrice.reserveB).div(sushiPrice.reserveA).sub(d)
     // order_size(PI%) ~= (pool_size * PI%) / 2
     // return half of that order size to compensate price impact on sushiswap
-    return uniPrice.reserveA.mul(priceDiff).div(2).div(4).div(d)
+    return uniPrice.reserveA.mul(priceDiff).div(2).div(2).div(d)
 }
 
 // Flashswap by borrowing amountBorrowDAI DAI on Uniswap, 
@@ -63,17 +63,24 @@ async function main() {
         logBlock(blockNumber, uniPrice, sushiPrice, priceDiff)
     
         // calc how much DAI should be borrowed on Uniswap to balance Uniswap and Sushiswap prices
-        // swap if Uniswap price is higher than Sushiswap
         const amountBorrowDAI = calcTradeSize(uniPrice, sushiPrice)
-        if (amountBorrowDAI.gte(BigNumber.from(0))) {
-            isSwapping = true
-            const success = await flashswap(uniPair, flashswapAddress, amountBorrowDAI)
-            if (success) {
-                await logBalance(senderAddress, cfg.WETH, cfg.DAI)
-                process.exit(0) // turn the app off on successs
+        if (amountBorrowDAI.gte(0)) {
+            // calculate max possible profit
+            const maxProfit = maxTradeProfit(uniPrice, sushiPrice, amountBorrowDAI)
+            console.log(`- trade_size=${ethers.utils.formatUnits(amountBorrowDAI, 18)} DAI, max_profit=${ethers.utils.formatUnits(maxProfit, 18)} DAI`)
+            
+            // swap if Uniswap price is higher than Sushiswap and there is an opportunity for profit
+            if (maxProfit.gte(0)) {
+                isSwapping = true
+                console.log(`[flashswap] max profit = ${ethers.utils.formatUnits(maxProfit, 18)} DAI`)
+                const success = await flashswap(uniPair, flashswapAddress, amountBorrowDAI)
+                if (success) {
+                    await logBalance(senderAddress, cfg.WETH, cfg.DAI)
+                    process.exit(0) // turn the app off on successs
+                }
+                isSwapping = false
             }
-            isSwapping = false
-        }
+        }        
     }
 
     ethers.provider.on('block', checkPrices)
