@@ -37,5 +37,6 @@ runScript(async function () {
         await printPairPrice(factoryAddress, tokenOutAddress, tokenInAddress)
     } catch (error) {
         console.log(`Swap failed: ${error}`)
+        await logBalance(holderAddress, tokenInAddress, tokenOutAddress)
     }
 })

@@ -5,7 +5,7 @@ const cfg = require('../config.json')
 runScript(async function () {
   const FlashSwap = await ethers.getContractFactory('FlashSwap')
   console.log('Deploying FlashSwap...')
-  const flashswap = await FlashSwap.deploy(cfg.uniFactory, cfg.sushiRouter)
+  const flashswap = await FlashSwap.deploy(cfg.uniFactory)
   await flashswap.deployed()
   console.log('FlashSwap deployed to:', flashswap.address)
 

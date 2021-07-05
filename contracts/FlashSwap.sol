@@ -13,11 +13,9 @@ contract FlashSwap {
     using SafeMath for uint;
 
     address immutable uniFactory;
-    IUniswapV2Router02 immutable sushiRouter;
 
-    constructor(address _uniFactory, address _sushiRouter) public {
+    constructor(address _uniFactory) public {
         uniFactory = _uniFactory;
-        sushiRouter = IUniswapV2Router02(_sushiRouter);
     }
 
     // This function is called by IUniswapV2Pair contract after it transfered borrowed tokens to this contract.
@@ -42,8 +40,9 @@ contract FlashSwap {
         console.log("In token amount borrowed  : %s", amountIn);
         console.log("Out token amount to return: %s", amountRequired);
 
-        require(IERC20(path[0]).approve(address(sushiRouter), amountIn), "Failed to approve amountIn tokens to sushi router");
-        uint amountSwapped = sushiRouter.swapTokensForExactTokens(amountRequired, amountIn, path, msg.sender, block.timestamp)[0];
+        (address swapRouter) = abi.decode(_data, (address)); // reverted if passed non-IUniswapV2Router02 contract?
+        require(IERC20(path[0]).approve(swapRouter, amountIn), "Failed to approve amountIn tokens to sushi router");
+        uint amountSwapped = IUniswapV2Router02(swapRouter).swapTokensForExactTokens(amountRequired, amountIn, path, msg.sender, block.timestamp)[0];
         console.log("In token amount swapped: %s", amountSwapped);
 
         require(IERC20(path[0]).transfer(_sender, amountIn - amountSwapped), "Failed to transfer rest of tokens to sender");
