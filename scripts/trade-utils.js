@@ -23,10 +23,16 @@ function getAmountIn(amountOut, reserveIn, reserveOut) {
 // Returns maximum potential profit of flashswap: borrowing amountBorrowDAI DAI on Uniswap,
 // swapping it on WETH on Sushiswap to return debt, and leaving rest of DAI as a profit.
 // Actual profit could be different due to frontrunning.
-function maxTradeProfit(uniPrice, sushiPrice, amountBorrowDAI) {
-    const amountRequiredWETH = getAmountIn(amountBorrowDAI, uniPrice.reserveB, uniPrice.reserveA)
-    const minSwapAmountIn = getAmountIn(amountRequiredWETH, sushiPrice.reserveA, sushiPrice.reserveB)
-    return amountBorrowDAI.sub(minSwapAmountIn)
+function maxTradeProfit(uniPrice, sushiPrice, amountBorrowA, amountBorrowB) {
+    if (amountBorrowA) {
+        const amountRequiredB = getAmountIn(amountBorrowA, uniPrice.reserveB, uniPrice.reserveA)
+        const minSwapAmountIn = getAmountIn(amountRequiredB, sushiPrice.reserveA, sushiPrice.reserveB)
+        return amountBorrowA.sub(minSwapAmountIn)
+    } else {
+        const amountRequiredA = getAmountIn(amountBorrowB, uniPrice.reserveA, uniPrice.reserveB)
+        const minSwapAmountIn = getAmountIn(amountRequiredA, sushiPrice.reserveB, sushiPrice.reserveA)
+        return amountBorrowB.sub(minSwapAmountIn)
+    }
 }
 
 module.exports = {

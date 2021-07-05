@@ -7,30 +7,45 @@ const { getPairPrice, getPairContract, priceDiffPercent } = require("./uni-utils
 const { logBlock, timeTag, getAmountIn, maxTradeProfit } = require("./trade-utils")
 
 
+// deployed FlashSwap.sol contract
+const flashswapAddress = '0x70e0bA845a1A0F2DA3359C97E0285013525FFC49'
+const dexToRouterAddress = cfg.sushiRouter
+
+const tokenAddressA = cfg.DAI
+const tokenAddressB = cfg.WETH
+
+
 // TODO: calculate ideal trade size
-// Calculates trade size of selling token B on Uniswap and buying on Sushiswap.
+
+// Calculates amount of tokens to borrow on Uniswap to swap on Sushiswap.
+// Returns amount of token B if Uniswap price of token B is larger,
+// otherwise amount of token A.
+//
 // Trade size is half of price impact to move uni price down to sushi price.
 function calcTradeSize(uniPrice, sushiPrice) {
-    const precision = 4
+    const precision = 18 // TODO: use token decimals?
     const d = BigNumber.from(10).pow(precision)
 
     // price_diff(u, s) = (1000 * (u.reserve_a * s.reserve_b) / (u.reserve_b * s.reserve_a)) - 1000
     const priceDiff = d.mul(uniPrice.reserveA).mul(sushiPrice.reserveB).div(uniPrice.reserveB).div(sushiPrice.reserveA).sub(d)
+    // console.log(`price diff = ${ethers.utils.formatUnits(priceDiff, precision)}%`)
+
     // order_size(PI%) ~= (pool_size * PI%) / 2
-    // return half of that order size to compensate price impact on sushiswap
-    return uniPrice.reserveA.mul(priceDiff).div(2).div(2).div(d)
+    if (priceDiff.gte(0)) {
+        return { amountBorrowA: uniPrice.reserveA.mul(priceDiff).div(2).div(d).div(2) }
+    } else {
+        return { amountBorrowB: uniPrice.reserveB.mul(-1).mul(priceDiff).div(2).div(d).div(2) }
+    }
 }
 
 // Flashswap by borrowing amountBorrowDAI DAI on Uniswap, 
 // swapping it for WETH required to return a loan,
 // and sending rest of DAI to a sender
-async function flashswap(uniPair, flashswapAddress, amountBorrowDAI) {
-    console.log(`\n[flashswap] execute flashswap by borrowing ${ethers.utils.formatUnits(amountBorrowDAI, 18)} DAI on Uniswap...`)
-
+async function flashswap(uniPair, tokenBorrowAddress, amountBorrow) {
     // prepare args
-    const amount0 = addressEquals(await uniPair.token0(), cfg.DAI) ? amountBorrowDAI : BigNumber.from(0)
-    const amount1 = addressEquals(await uniPair.token1(), cfg.DAI) ? amountBorrowDAI : BigNumber.from(0)
-    const data = ethers.utils.randomBytes(2) // non-zero length random bytes are ok?
+    const amount0 = addressEquals(await uniPair.token0(), tokenBorrowAddress) ? amountBorrow : BigNumber.from(0)
+    const amount1 = addressEquals(await uniPair.token1(), tokenBorrowAddress) ? amountBorrow : BigNumber.from(0)
+    const data = ethers.utils.defaultAbiCoder.encode(['address'], [dexToRouterAddress])
 
     // swap
     try {
@@ -45,12 +60,14 @@ async function flashswap(uniPair, flashswapAddress, amountBorrowDAI) {
 }
 
 async function main() {
-    // deployed uni_borrow -> sushi_swap FlashSwap.sol contract
-    const flashswapAddress = '0x4826533B4897376654Bb4d4AD88B7faFD0C98528'
     const senderAddress = await (await ethers.provider.getSigner()).getAddress()
 
-    const uniPair = await getPairContract(cfg.uniFactory, cfg.WETH, cfg.DAI)
-    const sushiPair = await getPairContract(cfg.sushiFactory, cfg.WETH, cfg.DAI)
+    const uniPair = await getPairContract(cfg.uniFactory, tokenAddressA, tokenAddressB)
+    const sushiPair = await getPairContract(cfg.sushiFactory, tokenAddressA, tokenAddressB)
+
+    // TODO: get sorted from uni pair contract
+    const tokenSymbolA = 'DAI'
+    const tokenSymbolB = 'WETH'
 
     var isSwapping = false
 
@@ -63,19 +80,22 @@ async function main() {
         logBlock(blockNumber, uniPrice, sushiPrice, priceDiff)
     
         // calc how much DAI should be borrowed on Uniswap to balance Uniswap and Sushiswap prices
-        const amountBorrowDAI = calcTradeSize(uniPrice, sushiPrice)
-        if (amountBorrowDAI.gte(0)) {
+        const trade = calcTradeSize(uniPrice, sushiPrice)
+        const amountBorrow = trade.amountBorrowA ? trade.amountBorrowA : trade.amountBorrowB
+        const tokenBorrowAddress = trade.amountBorrowA ? tokenAddressA : tokenAddressB
+        const tokenBorrowSymbol = trade.amountBorrowA ? tokenSymbolA : tokenSymbolB
+        if (amountBorrow.gte(0)) {
             // calculate max possible profit
-            const maxProfit = maxTradeProfit(uniPrice, sushiPrice, amountBorrowDAI)
-            console.log(`- trade_size=${ethers.utils.formatUnits(amountBorrowDAI, 18)} DAI, max_profit=${ethers.utils.formatUnits(maxProfit, 18)} DAI`)
-            
+            const maxProfit = maxTradeProfit(uniPrice, sushiPrice, trade.amountBorrowA, trade.amountBorrowB)
+            console.log(`- amount_borrow=${ethers.utils.formatUnits(amountBorrow, 18)} ${tokenBorrowSymbol}, max_profit=${ethers.utils.formatUnits(maxProfit, 18)} ${tokenBorrowSymbol}`)
+
             // swap if Uniswap price is higher than Sushiswap and there is an opportunity for profit
             if (maxProfit.gte(0)) {
                 isSwapping = true
-                console.log(`[flashswap] max profit = ${ethers.utils.formatUnits(maxProfit, 18)} DAI`)
-                const success = await flashswap(uniPair, flashswapAddress, amountBorrowDAI)
+                console.log(`\n[flashswap] execute flashswap by borrowing ${ethers.utils.formatUnits(amountBorrow, 18)} ${tokenBorrowSymbol} on Uniswap...`)
+                const success = await flashswap(uniPair, tokenBorrowAddress, amountBorrow)
                 if (success) {
-                    await logBalance(senderAddress, cfg.WETH, cfg.DAI)
+                    await logBalance(senderAddress, tokenAddressA, tokenAddressB)
                     process.exit(0) // turn the app off on successs
                 }
                 isSwapping = false

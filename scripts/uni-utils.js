@@ -22,7 +22,8 @@ async function printPairPrice(factoryAddress, _token0Address, _token1Address) {
     const reserve0 = (await pair.token0() == token0Address) ? _reserve0 : _reserve1
     const reserve1 = (await pair.token0() == token0Address) ? _reserve1 : _reserve0
     
-    const floatingPoint = 6
+    // TODO: use exact decimals for each price
+    const floatingPoint = decimals0 > decimals1 ? decimals0 : decimals1
     const price0 = reserve1.mul(BigNumber.from(10).pow(decimals0+floatingPoint)).div(reserve0.mul(BigNumber.from(10).pow(decimals1)))
     const price1 = reserve0.mul(BigNumber.from(10).pow(decimals1+floatingPoint)).div(reserve1.mul(BigNumber.from(10).pow(decimals0)))
     
