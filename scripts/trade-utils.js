@@ -12,8 +12,8 @@ ${timeTag()} #${blockNumber} [WETH/DAI]
 - sushi_reserves=(${ethers.utils.formatUnits(sushiPrice.reserveA)}, ${ethers.utils.formatUnits(sushiPrice.reserveB)})`)
 }
 
-
-// given an output amount of an asset and pair reserves, returns a required input amount of the other asset
+// Returns a required input amount of the other asset, 
+// given an output amount of an asset and pair reserves.
 function getAmountIn(amountOut, reserveIn, reserveOut) {
     const numerator = reserveIn.mul(amountOut).mul(1000)
     const denominator = reserveOut.sub(amountOut).mul(997)

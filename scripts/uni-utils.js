@@ -9,15 +9,26 @@ async function getPairContract(factoryAddress, tokenAAddress, tokenBAddress) {
 }
 
 // print Uniswap pair contract price and reserves
-async function printPairPrice(factoryAddress, token0Address, token1Address) {
-    var pair = await getPairContract(factoryAddress, token0Address, token1Address)
-    var [reserve0, reserve1] = await pair.getReserves()
+async function printPairPrice(factoryAddress, _token0Address, _token1Address) {
+    const pair = await getPairContract(factoryAddress, _token0Address, _token1Address)
 
-    price = reserve0.div(reserve1).toString()
+    const [token0Address, token1Address] = (await pair.token0() == _token0Address) ? [_token0Address, _token1Address] : [_token1Address, _token0Address]
     const token0 = await ethers.getContractAt('@uniswap/v2-periphery/contracts/interfaces/IERC20.sol:IERC20', token0Address)
     const token1 = await ethers.getContractAt('@uniswap/v2-periphery/contracts/interfaces/IERC20.sol:IERC20', token1Address)
+    const decimals0 = await token0.decimals()
+    const decimals1 = await token1.decimals()
+
+    const [_reserve0, _reserve1] = await pair.getReserves()
+    const reserve0 = (await pair.token0() == token0Address) ? _reserve0 : _reserve1
+    const reserve1 = (await pair.token0() == token0Address) ? _reserve1 : _reserve0
     
-    console.log(`1 ${await token0.symbol()} = ${price} ${await token1.symbol()} (${ethers.utils.formatUnits(reserve0)}, ${ethers.utils.formatUnits(reserve1)})`)
+    const floatingPoint = 6
+    const price0 = reserve1.mul(BigNumber.from(10).pow(decimals0+floatingPoint)).div(reserve0.mul(BigNumber.from(10).pow(decimals1)))
+    const price1 = reserve0.mul(BigNumber.from(10).pow(decimals1+floatingPoint)).div(reserve1.mul(BigNumber.from(10).pow(decimals0)))
+    
+    console.log(`1 ${await token0.symbol()} = ${ethers.utils.formatUnits(price0, floatingPoint)} ${await token1.symbol()}
+1 ${await token1.symbol()} = ${ethers.utils.formatUnits(price1, floatingPoint)} ${await token0.symbol()}
+reserves = [${ethers.utils.formatUnits(reserve0, decimals0)}, ${ethers.utils.formatUnits(reserve1, decimals1)}]`)
 }
 
 // TODO: improve precision

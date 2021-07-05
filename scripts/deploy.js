@@ -3,12 +3,6 @@ const runScript = require("./utils").runScript
 const cfg = require('../config.json')
 
 runScript(async function () {
-  const Swap = await ethers.getContractFactory('Swap')
-  console.log('Deploying Swap...')
-  const swap = await Swap.deploy(cfg.uniRouter, cfg.dai, cfg.weth)
-  await swap.deployed()
-  console.log('Swap deployed to:', swap.address)
-
   const FlashSwap = await ethers.getContractFactory('FlashSwap')
   console.log('Deploying FlashSwap...')
   const flashswap = await FlashSwap.deploy(cfg.uniFactory, cfg.sushiFactory, cfg.sushiRouter)
