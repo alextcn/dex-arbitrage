@@ -13,18 +13,15 @@ contract FlashSwap {
     using SafeMath for uint;
 
     address immutable uniFactory;
-    address immutable sushiFactory;
     IUniswapV2Router02 immutable sushiRouter;
 
-    constructor(address _uniFactory, address _sushiFactory, address _sushiRouter) public {
+    constructor(address _uniFactory, address _sushiRouter) public {
         uniFactory = _uniFactory;
-        sushiFactory = _sushiFactory;
         sushiRouter = IUniswapV2Router02(_sushiRouter);
     }
 
-    // This function is called byUniswapV2Pair contract after sending tokens to it.
-    // Loan has to be repaid to msg.sender by the end of this function.
-    // The contract returns amount of tokenOut that has to be paid for borrowed amountIn of tokenIn.
+    // This function is called by IUniswapV2Pair contract after it transfered borrowed tokens to this contract.
+    // Owed tokens have to be repaid to IUniswapV2Pair(msg.sender) by the end of this function.
     function uniswapV2Call(address _sender, uint _amount0, uint _amount1, bytes calldata _data) external {
         require(_amount0 == 0 || _amount1 == 0);
         uint amountIn = _amount0 == 0 ? _amount1 : _amount0;
