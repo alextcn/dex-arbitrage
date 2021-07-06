@@ -8,6 +8,22 @@ async function getPairContract(factoryAddress, tokenAAddress, tokenBAddress) {
     return await ethers.getContractAt('@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol:IUniswapV2Pair', pairAddress)
 }
 
+// returns token info object
+async function tokenInfo(tokenAddress) {
+    const token = await ethers.getContractAt('@uniswap/v2-periphery/contracts/interfaces/IERC20.sol:IERC20', tokenAddress)
+    return {
+        address: tokenAddress,
+        name: await token.name(),
+        symbol: await token.symbol(),
+        decimals: await token.decimals(),
+        format: function (amount, withSymbol) {
+            const s = ethers.utils.formatUnits(amount, this.decimals)
+            if (withSymbol) return `${s} ${this.symbol}`
+            return s
+        }
+    }
+}
+
 // print Uniswap pair contract price and reserves
 async function printPairPrice(factoryAddress, _token0Address, _token1Address) {
     const pair = await getPairContract(factoryAddress, _token0Address, _token1Address)
@@ -32,6 +48,11 @@ async function printPairPrice(factoryAddress, _token0Address, _token1Address) {
 reserves = [${ethers.utils.formatUnits(reserve0, decimals0)}, ${ethers.utils.formatUnits(reserve1, decimals1)}]`)
 }
 
+
+// ###########################################
+// ################### FIX ###################
+// ###########################################
+
 // TODO: improve precision
 // pair is IUniswapV2Pair contract
 async function getPairPrice(pair) {
@@ -39,8 +60,8 @@ async function getPairPrice(pair) {
     return {
         reserveA: reserveA,
         reserveB: reserveB,
-        priceA: reserveB.div(reserveA), // TODO: is that correct?
-        priceB: reserveA.div(reserveB), // TODO: is that correct?
+        priceA: reserveB.div(reserveA), // TODO: is that correct? no
+        priceB: reserveA.div(reserveB), // TODO: is that correct? no
         priceBFormatted: reservesToPrice(reserveA, reserveB, 4)
     }
 }
@@ -58,10 +79,16 @@ function priceDiffPercent(price0, price1) {
     return ethers.utils.formatUnits(priceDiff, precision - 2)
 }
 
+// ###########################################
+// ###########################################
+// ###########################################
+
+
 
 module.exports = {
     getPairContract,
     printPairPrice,
     getPairPrice,
-    priceDiffPercent
+    priceDiffPercent,
+    tokenInfo
 }

@@ -6,8 +6,8 @@ const cfg = require('../config.json')
 // FlashSwap.sol contract only supports flashswaps from actual Uniswap protocol.
 // 'dexFromFactoryAddress' must be the same as in deployed FlashSwap.sol contract.
 const flashswapAddress = '0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf'
-const dexFromFactoryAddress = cfg.uniFactory
-const dexToRouterAddress = cfg.sushiRouter
+const dexFromFactoryAddress = cfg.uni.factory
+const dexToRouterAddress = cfg.sushi.router
 
 // uses deafult ethers account if accountAddress is undefined
 var accountAddress = '0x82810e81cad10b8032d39758c8dba3ba47ad7092'

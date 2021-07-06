@@ -5,8 +5,8 @@ const cfg = require('../config.json')
 
 // this test passes only when there is arbitrage opportunity between Uniswap and Sushiswap
 describe("FlashLoanSwap", function() {
-    const tokenSellAddress = cfg.weth
-    const tokenBuyAddress = cfg.dai
+    const tokenSellAddress = cfg.WETH
+    const tokenBuyAddress = cfg.DAI
     const amount = '3.14159265'
     
     var contract
@@ -18,7 +18,7 @@ describe("FlashLoanSwap", function() {
     before(async function () {
         const FlashLoanSwap = await ethers.getContractFactory('FlashLoanSwap')
         console.log('Deploying FlashLoanSwap...')
-        contract = await FlashLoanSwap.deploy(cfg.aaveProvider, cfg.uniRouter, cfg.sushiRouter)
+        contract = await FlashLoanSwap.deploy(cfg.aaveProvider, cfg.uni.router, cfg.sushi.router)
         contractAddress = (await contract.deployed()).address
         console.log('FlashLoanSwap deployed to:', contractAddress)
 

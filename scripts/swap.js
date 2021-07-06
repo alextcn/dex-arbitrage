@@ -3,8 +3,8 @@ const cfg = require("../config.json")
 const { printPairPrice } = require("./uni-utils")
 const { runScript, logBalance } = require("./utils")
 
-const factoryAddress = cfg.uniFactory
-const routerAddress = cfg.uniRouter
+const factoryAddress = cfg.uni.factory
+const routerAddress = cfg.uni.router
 const holderAddress = '0x82810e81cad10b8032d39758c8dba3ba47ad7092'
 
 const tokenInAddress = cfg.DAI

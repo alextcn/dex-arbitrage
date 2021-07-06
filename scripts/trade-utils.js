@@ -1,16 +1,5 @@
 
-function timeTag() {
-    const date = new Date()
-    return `${date.toLocaleTimeString('en-US', { hour12: false })}:${date.getMilliseconds()}`
-}
-
-function logBlock(blockNumber, uniPrice, sushiPrice, priceDiff) {
-    console.log(`
-${timeTag()} #${blockNumber} [WETH/DAI]
-- uni=${uniPrice.priceBFormatted}, sushi=${sushiPrice.priceBFormatted}, diff=${priceDiff}%
-- uni_reserves=(${ethers.utils.formatUnits(uniPrice.reserveA, 18)}, ${ethers.utils.formatUnits(uniPrice.reserveB)})
-- sushi_reserves=(${ethers.utils.formatUnits(sushiPrice.reserveA)}, ${ethers.utils.formatUnits(sushiPrice.reserveB)})`)
-}
+const { BigNumber } = require("ethers")
 
 // Returns a required input amount of the other asset, 
 // given an output amount of an asset and pair reserves.
@@ -20,24 +9,56 @@ function getAmountIn(amountOut, reserveIn, reserveOut) {
     return numerator.div(denominator).add(1)
 }
 
-// Returns maximum potential profit of flashswap: borrowing amountBorrowDAI DAI on Uniswap,
-// swapping it on WETH on Sushiswap to return debt, and leaving rest of DAI as a profit.
+// TODO: calculate ideal trade size
+// Calculates amount of tokens to borrow on Uniswap to swap on Sushiswap.
+// Returns amount of token B if Uniswap price of token B is larger,
+// otherwise amount of token A.
+//
+// Trade size is half of price impact to move uni price down to sushi price.
+function createTrade(price0, price1) {
+    const precision = 18 // TODO: use token decimals?
+    const d = BigNumber.from(10).pow(precision)
+
+    // price_diff(u, s) = (1000 * (u.reserve_a * s.reserve_b) / (u.reserve_b * s.reserve_a)) - 1000
+    const priceDiff = d.mul(price0.reserveA).mul(price1.reserveB).div(price0.reserveB).div(price1.reserveA).sub(d)
+    // console.log(`price diff = ${ethers.utils.formatUnits(priceDiff, precision)}%`)
+
+    // order_size(PI%) ~= (pool_size * PI%) / 2
+    if (priceDiff.gte(0)) {
+        return { amountBorrowA: price0.reserveA.mul(priceDiff).div(2).div(d).div(2) }
+    } else {
+        return { amountBorrowB: price0.reserveB.mul(-1).mul(priceDiff).div(2).div(d).div(2) }
+    }
+}
+
+// Returns maximum potential profit of flashswap: borrowing amountBorrow tokens on DEX0,
+// swapping it on another tokens on DEX1 to return debt, and leaving rest of borrowed tokens as a profit.
 // Actual profit could be different due to frontrunning.
-function maxTradeProfit(uniPrice, sushiPrice, amountBorrowA, amountBorrowB) {
+function flashswapProfit(price0, price1, amountBorrowA, amountBorrowB) {
     if (amountBorrowA) {
-        const amountRequiredB = getAmountIn(amountBorrowA, uniPrice.reserveB, uniPrice.reserveA)
-        const minSwapAmountIn = getAmountIn(amountRequiredB, sushiPrice.reserveA, sushiPrice.reserveB)
+        const amountRequiredB = getAmountIn(amountBorrowA, price0.reserveB, price0.reserveA)
+        const minSwapAmountIn = getAmountIn(amountRequiredB, price1.reserveA, price1.reserveB)
         return amountBorrowA.sub(minSwapAmountIn)
     } else {
-        const amountRequiredA = getAmountIn(amountBorrowB, uniPrice.reserveA, uniPrice.reserveB)
-        const minSwapAmountIn = getAmountIn(amountRequiredA, sushiPrice.reserveB, sushiPrice.reserveA)
+        const amountRequiredA = getAmountIn(amountBorrowB, price0.reserveA, price0.reserveB)
+        const minSwapAmountIn = getAmountIn(amountRequiredA, price1.reserveB, price1.reserveA)
         return amountBorrowB.sub(minSwapAmountIn)
     }
 }
 
+function logBlock(blockNumber, tokenAInfo, tokenBInfo, price0, price1, priceDiff) {
+    const date = new Date()
+    const timeTag = `${date.toLocaleTimeString('en-US', { hour12: false })}:${date.getMilliseconds()}`
+    console.log(`${timeTag} #${blockNumber} [${tokenAInfo.symbol}/${tokenBInfo.symbol}]`)
+
+    console.log(`- uni=${price0.priceBFormatted}, sushi=${price1.priceBFormatted}, diff=${priceDiff}%`)
+    console.log(`- uni_reserves=(${tokenAInfo.format(price0.reserveA)}, ${tokenBInfo.format(price0.reserveB)})`)
+    console.log(`- sushi_reserves=(${tokenAInfo.format(price1.reserveA)}, ${tokenBInfo.format(price1.reserveB)})`)
+}
+
 module.exports = {
-    timeTag,
-    logBlock,
     getAmountIn,
-    maxTradeProfit
+    createTrade,
+    flashswapProfit,
+    logBlock
 }
