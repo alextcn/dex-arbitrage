@@ -9,9 +9,26 @@ const { logBlock, createTrade, flashswapProfit } = require("./trade-utils")
 // deployed FlashSwap.sol contract
 const flashswapAddress = '0x70e0bA845a1A0F2DA3359C97E0285013525FFC49'
 const routeAddresses = [
-    [cfg.DAI, cfg.WETH],
-    [cfg.USDC, cfg.WETH],
-    [cfg.WETH, cfg.LINK]
+    // WETH
+    [cfg.WETH, cfg.USDT],
+    [cfg.WETH, cfg.USDC],
+    [cfg.WETH, cfg.DAI],
+    [cfg.WETH, cfg.WBTC],
+    // WBTC
+    [cfg.WBTC, cfg.USDT],
+    // [cfg.WBTC, cfg.USDC], // no pair on sushi
+    // [cfg.WBTC, cfg.DAI], // no pair on sushi
+    // other
+    // [cfg.FNK, cfg.USDT], // no pair on sushi
+    // [cfg.FEI, cfg.WETH], // no pair on sushi    
+    [cfg.SHIB, cfg.WETH],
+    [cfg.UNI, cfg.WETH],
+    // [cfg.SAND, cfg.WETH], // no pair on sushi
+    [cfg.AAVE, cfg.WETH],
+    [cfg.LINK, cfg.WETH],
+    [cfg.SNX, cfg.WETH],
+    [cfg.CRV, cfg.WETH],
+    [cfg.COMP, cfg.WETH]
 ]
 const dex0 = {
     name: "Uniswap",
