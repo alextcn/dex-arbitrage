@@ -3,13 +3,13 @@ const { runApp, addressEquals, logBalance } = require("./utils")
 const cfg = require('../config.json')
 const { ethers } = require("hardhat")
 const { BigNumber } = require("ethers")
-const { getPairPrice, getPairContract, priceDiffPercent, tokenInfo } = require("./uni-utils")
+const { getPairContract, tokenInfo } = require("./uni-utils")
 const { logBlock, createTrade, flashswapProfit } = require("./trade-utils")
 
 // deployed FlashSwap.sol contract
 const flashswapAddress = '0x70e0bA845a1A0F2DA3359C97E0285013525FFC49'
-const tokenAAddress = cfg.USDC
-const tokenBAddress = cfg.LINK
+const tokenAAddress = cfg.DAI
+const tokenBAddress = cfg.WETH
 
 const dex0 = {
     name: "Uniswap",
@@ -62,21 +62,17 @@ async function main() {
     var checkPrices = async function (blockNumber) {
         if (isSwapping) return
     
-        // TODO: make more accurate precision
-        const price0 = await getPairPrice(pair0)
-        const price1 = await getPairPrice(pair1)
-        const priceDiff = priceDiffPercent(price0, price1)
-        logBlock(blockNumber, tokenAInfo, tokenBInfo, price0, price1, priceDiff)
-    
+        const reserves0 = await pair0.getReserves()
+        const reserves1 = await pair1.getReserves()
+        
         // calc how much token should be borrowed to balance prices between two DEXes
-        const trade = createTrade(price0, price1)
+        const trade = createTrade(reserves0, reserves1)
         const amountBorrow = trade.amountBorrowA ? trade.amountBorrowA : trade.amountBorrowB
         const tokenBorrowInfo = trade.amountBorrowA ? tokenAInfo : tokenBInfo
-
         // calculate max potential profit by flashswapping amountBorrow tokens
-        const maxProfit = flashswapProfit(price0, price1, trade.amountBorrowA, trade.amountBorrowB)
-        console.log(`- amount_borrow=${tokenBorrowInfo.format(amountBorrow, true)}, max_profit=${tokenBorrowInfo.format(maxProfit, true)}`)
-
+        const maxProfit = flashswapProfit(reserves0, reserves1, trade.amountBorrowA, trade.amountBorrowB)
+        
+        logBlock(blockNumber, dex0, dex1, tokenAInfo, tokenBInfo, reserves0, reserves1, tokenBorrowInfo, amountBorrow, maxProfit, true)
         // swap if Uniswap price is higher than Sushiswap and there is an opportunity for profit
         if (maxProfit.gte(0)) {
             isSwapping = true

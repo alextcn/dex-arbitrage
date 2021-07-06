@@ -24,7 +24,20 @@ async function tokenInfo(tokenAddress) {
     }
 }
 
-// print Uniswap pair contract price and reserves
+function reservesToPrice(reserveA, reserveB, decimalsA, decimalsB) {
+    return {
+        priceA: reserveB.mul(BigNumber.from(10).pow(decimalsA)).div(reserveA),
+        priceB: reserveA.mul(BigNumber.from(10).pow(decimalsB)).div(reserveB)
+    }
+}
+
+function diffPercent(value1, value2, decimals) {
+    const d = BigNumber.from('10').pow(18)
+    const diff = d.mul(value1).div(value2).sub(d).div(BigNumber.from('10').pow(18 - decimals))
+    return ethers.utils.formatUnits(diff, decimals - 2)
+}
+
+// prints Uniswap pair contract price and reserves
 async function printPairPrice(factoryAddress, _token0Address, _token1Address) {
     const pair = await getPairContract(factoryAddress, _token0Address, _token1Address)
 
@@ -49,46 +62,10 @@ reserves = [${ethers.utils.formatUnits(reserve0, decimals0)}, ${ethers.utils.for
 }
 
 
-// ###########################################
-// ################### FIX ###################
-// ###########################################
-
-// TODO: improve precision
-// pair is IUniswapV2Pair contract
-async function getPairPrice(pair) {
-    const [reserveA, reserveB] = await pair.getReserves()
-    return {
-        reserveA: reserveA,
-        reserveB: reserveB,
-        priceA: reserveB.div(reserveA), // TODO: is that correct? no
-        priceB: reserveA.div(reserveB), // TODO: is that correct? no
-        priceBFormatted: reservesToPrice(reserveA, reserveB, 4)
-    }
-}
-
-function reservesToPrice(reserveA, reserveB, precision) {
-    const p = reserveA.mul(BigNumber.from(10).pow(precision)).div(reserveB)
-    return ethers.utils.formatUnits(p, precision)
-}
-
-function priceDiffPercent(price0, price1) {
-    const precision = 4
-    const d = BigNumber.from(10).pow(precision)
-
-    const priceDiff = d.mul(price0.reserveA).mul(price1.reserveB).div(price0.reserveB).div(price1.reserveA).sub(d)
-    return ethers.utils.formatUnits(priceDiff, precision - 2)
-}
-
-// ###########################################
-// ###########################################
-// ###########################################
-
-
-
 module.exports = {
+    reservesToPrice,
     getPairContract,
     printPairPrice,
-    getPairPrice,
-    priceDiffPercent,
+    diffPercent,
     tokenInfo
 }
