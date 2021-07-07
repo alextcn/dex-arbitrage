@@ -72,7 +72,7 @@ function getAmountOut(amountIn, reserveIn, reserveOut) {
     return amountOut = numerator.div(denominator)
 }
 
-function logBlock(blockNumber, dex0, dex1, tokenAInfo, tokenBInfo, reserves0, reserves1, tokenBorrowInfo, amountBorrow, maxProfit, oneline) {
+function logBlock(blockNumber, dex0, dex1, tokenAInfo, tokenBInfo, reserves0, reserves1, tokenBorrowInfo, amountBorrow, profit, oneline) {
     const date = new Date()
     const timeTag = `${date.toLocaleTimeString('en-US', { hour12: false })}:${date.getMilliseconds()}`
 
@@ -81,13 +81,17 @@ function logBlock(blockNumber, dex0, dex1, tokenAInfo, tokenBInfo, reserves0, re
     const priceDiff = diffPercent(price0.priceB, price1.priceB, 4)
 
     if (oneline) {
-        console.log(`${timeTag} #${blockNumber} [${tokenAInfo.symbol}/${tokenBInfo.symbol}] ${dex0.name}=${tokenAInfo.format(price0.priceB)}, ${dex1.name}=${tokenAInfo.format(price1.priceB)}, diff=${priceDiff}%`)
+        var log = `${timeTag} #${blockNumber} [${tokenAInfo.symbol}/${tokenBInfo.symbol}] ${dex0.name}=${tokenAInfo.format(price0.priceB)}, ${dex1.name}=${tokenAInfo.format(price1.priceB)}, diff=${priceDiff}%`
+        if (profit.gte(0)) {
+            log +=  `\n                                   - arb opportunity: borrow=${tokenBorrowInfo.format(amountBorrow, true)}, profit=${tokenBorrowInfo.format(profit, true)}`
+        }
+        console.log(log)
     } else {
         console.log(`${timeTag} #${blockNumber} [${tokenAInfo.symbol}/${tokenBInfo.symbol}]`)
         console.log(`- ${dex0.name}=${tokenAInfo.format(price0.priceB)}, ${dex1.name}=${tokenAInfo.format(price1.priceB)}, diff=${priceDiff}%`)
         console.log(`- Reserves: ${dex0.name}=[${tokenAInfo.format(reserves0[0])}, ${tokenBInfo.format(reserves0[1])}], ${dex1.name}=[${tokenAInfo.format(reserves1[0])}, ${tokenBInfo.format(reserves1[1])}]`)
+        console.log(`                                   borrow=${tokenBorrowInfo.format(amountBorrow, true)}, profit=${tokenBorrowInfo.format(profit, true)}`)
     }
-    console.log(`                                   borrow=${tokenBorrowInfo.format(amountBorrow, true)}, profit=${tokenBorrowInfo.format(maxProfit, true)}`)
 }
 
 module.exports = {
