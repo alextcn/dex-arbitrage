@@ -7,7 +7,7 @@ const { getPairContract, tokenInfo } = require("./uni-utils")
 const { logBlock, createTrade, flashswapProfit } = require("./trade-utils")
 
 // deployed FlashSwap.sol contract
-const flashswapAddress = '0x70e0bA845a1A0F2DA3359C97E0285013525FFC49'
+const flashswapAddress = '0x70e0ba845a1a0f2da3359c97e0285013525ffc49'
 const routeAddresses = [
     // WETH
     [cfg.WETH, cfg.USDT],
@@ -15,7 +15,7 @@ const routeAddresses = [
     [cfg.WETH, cfg.DAI],
     [cfg.WETH, cfg.WBTC],
     // WBTC
-    [cfg.WBTC, cfg.USDT],
+    // [cfg.WBTC, cfg.USDT], // empty pool on sushi
     // [cfg.WBTC, cfg.USDC], // no pair on sushi
     // [cfg.WBTC, cfg.DAI], // no pair on sushi
     // other
