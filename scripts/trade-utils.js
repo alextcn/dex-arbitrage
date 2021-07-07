@@ -2,35 +2,42 @@
 const { BigNumber } = require("ethers")
 const { diffPercent, reservesToPrice } = require("./uni-utils")
 
-// Returns a required input amount of the other asset, 
-// given an output amount of an asset and pair reserves.
-function getAmountIn(amountOut, reserveIn, reserveOut) {
-    const numerator = reserveIn.mul(amountOut).mul(1000)
-    const denominator = reserveOut.sub(amountOut).mul(997)
-    return numerator.div(denominator).add(1)
-}
 
-// TODO: calculate ideal trade size
-// TODO: support min value
+// TODO: check that trade size is larger than pool size
 // Calculates amount of tokens to borrow on Uniswap to swap on Sushiswap.
 // Returns amount of token B if Uniswap price of token B is larger,
-// otherwise amount of token A.
-//
-// Trade size is half of price impact to move uni price down to sushi price.
+// otherwise amount of token A. Trade size is half of required amount to 
+// move less liquid market to more luquid market.
+// 
+// order_size(PI%) ~= (pool_size * PI%) / 2
 function createTrade(reserves0, reserves1) {
-    const precision = 18 // TODO: use token decimals?
+    const precision = 18
     const d = BigNumber.from('10').pow(precision)
 
-    // price_diff(u, s) = (1000 * (u.reserve_a * s.reserve_b) / (u.reserve_b * s.reserve_a)) - 1000
+    // price0/price1
     const priceDiff = d.mul(reserves0[0]).mul(reserves1[1]).div(reserves0[1]).div(reserves1[0]).sub(d)
-    // console.log(`price diff = ${ethers.utils.formatUnits(priceDiff, precision)}%`)
 
-    // order_size(PI%) ~= (pool_size * PI%) / 2
-    if (priceDiff.gte(0)) {
-        return { amountBorrowA: reserves0[0].mul(priceDiff).div(2).div(d).div(2) }
+    var amountBorrowA
+    var amountBorrowB
+    
+    // calc based on half of price impact of less liquid market
+    if (reserves0[0].mul(reserves0[1]).lt(reserves1[0].mul(reserves1[1]))) {
+        amountBorrowA = priceDiff.gte(0) ? reserves0[0].mul(priceDiff).div(2).div(d).div(2) : undefined
+        amountBorrowB = priceDiff.gte(0) ? undefined : reserves0[1].mul(-1).mul(priceDiff).div(2).div(d).div(2)
     } else {
-        return { amountBorrowB: reserves0[1].mul(-1).mul(priceDiff).div(2).div(d).div(2) }
+        amountBorrowA = priceDiff.gte(0) ? reserves1[0].mul(priceDiff).div(2).div(d).div(2) : undefined
+        amountBorrowB = priceDiff.gte(0) ? undefined : reserves1[1].mul(-1).mul(priceDiff).div(2).div(d).div(2)
     }
+    
+    // check max borrow reserves
+    if (amountBorrowA && amountBorrowA.gte(reserves0[0])) {
+        amountBorrowA = reserves0[0]
+    }
+    if (amountBorrowB && amountBorrowB.gte(reserves0[1])) {
+        amountBorrowB = reserves0[1]
+    }
+
+    return { amountBorrowA: amountBorrowA, amountBorrowB: amountBorrowB }
 }
 
 // Returns maximum potential profit of flashswap: borrowing amountBorrow tokens on DEX0,
@@ -46,6 +53,23 @@ function flashswapProfit(reserves0, reserves1, amountBorrowA, amountBorrowB) {
         const minSwapAmountIn = getAmountIn(amountRequiredA, reserves1[1], reserves1[0])
         return amountBorrowB.sub(minSwapAmountIn)
     }
+}
+
+// Returns a required input amount of the other asset, 
+// given an output amount of an asset and pair reserves.
+function getAmountIn(amountOut, reserveIn, reserveOut) {
+    const numerator = reserveIn.mul(amountOut).mul(1000)
+    const denominator = reserveOut.sub(amountOut).mul(997)
+    return numerator.div(denominator).add(1)
+}
+
+// Returns the maximum output amount of the other asset, 
+// given an input amount of an asset and pair reserves.
+function getAmountOut(amountIn, reserveIn, reserveOut) {
+    const amountInWithFee = amountIn.mul(997)
+    const numerator = amountInWithFee.mul(reserveOut)
+    const denominator = reserveIn.mul(1000).add(amountInWithFee)
+    return amountOut = numerator.div(denominator)
 }
 
 function logBlock(blockNumber, dex0, dex1, tokenAInfo, tokenBInfo, reserves0, reserves1, tokenBorrowInfo, amountBorrow, maxProfit, oneline) {
@@ -68,6 +92,7 @@ function logBlock(blockNumber, dex0, dex1, tokenAInfo, tokenBInfo, reserves0, re
 
 module.exports = {
     getAmountIn,
+    getAmountOut,
     createTrade,
     flashswapProfit,
     logBlock
