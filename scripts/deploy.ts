@@ -1,6 +1,7 @@
 
-const runScript = require("./utils").runScript
-const cfg = require('../config.json')
+import { ethers } from "hardhat"
+import { runScript } from "./utils"
+import cfg from '../config.json'
 
 runScript(async function () {
   const FlashSwap = await ethers.getContractFactory('FlashSwap')

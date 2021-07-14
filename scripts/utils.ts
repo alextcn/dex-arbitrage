@@ -1,5 +1,6 @@
+import { ethers } from "hardhat"
 
-function runScript(script) {
+export function runScript(script: () => Promise<any>) {
     script()
         .then(() => process.exit(0))
         .catch(error => {
@@ -8,7 +9,7 @@ function runScript(script) {
         })
 }
 
-function runApp(app) {
+export function runApp(app: () => Promise<any>) {
     app()
         .then(() => process.stdin.resume())
         .catch(error => {
@@ -17,7 +18,7 @@ function runApp(app) {
         })
 }
 
-async function logBalance(address, ...tokens) {
+export async function logBalance(address: string, ...tokens: string[]) {
     console.log(`Balance of ${address}:`)
     const ethBalance = await ethers.provider.getBalance(address)
     console.log(`--- ETH: ${ethers.utils.formatEther(ethBalance)}`)
@@ -31,16 +32,8 @@ async function logBalance(address, ...tokens) {
     }
 }
 
-function addressEquals(address1, address2) {
+export function addressEquals(address1: string, address2: string) {
     return address1.toUpperCase() === address2.toUpperCase()
 }
 
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
-
-module.exports = {
-    runScript,
-    runApp,
-    logBalance,
-    addressEquals,
-    delay
-}
+export const delay: (ms: number) => Promise<any> = ms => new Promise(resolve => setTimeout(resolve, ms, 0))
