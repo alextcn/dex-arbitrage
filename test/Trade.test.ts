@@ -1,9 +1,11 @@
 import { expect } from "chai"
 import { ethers } from "hardhat"
 import { BigNumber } from "ethers"
-import { BalancerPool, UniswapPair, flashswapProfitUniToUni, flashswapProfitUniToBalancer, uniPrice } from '../scripts/x'
-import { BN, fromBN, toBN } from "../scripts/bn"
+import { flashswapProfitUniToUni, flashswapProfitUniToBalancer } from '../src/trade'
+import { BN, fromBN, toBN } from "../src/utils/bn"
 import { bmath } from "@balancer-labs/sor"
+import { uniPrice } from '../src/utils/dex'
+import { BalancerPool, UniswapPair } from '../src/pair'
 
 
 describe("Trade", function() {

@@ -1,57 +1,8 @@
 import { BigNumber } from "ethers"
-import { BN, fromBN, toBN } from "./bn"
+import { BN, fromBN, toBN } from "./utils/bn"
 import { bmath } from "@balancer-labs/sor"
-import { ethers } from "hardhat"
+import { BalancerPool, UniswapPair } from "./pair"
 
-
-interface Uniswap {
-    name: string
-    protocol: 'UniswapV2'
-    factory: string
-    router: string
-}
-
-interface Balancer {
-    name: string
-    protocol: 'BalancerV2'
-    vault: string
-}
-
-type DEX = Uniswap | Balancer
-
-
-
-// TODO: pass pair of tokens
-export async function buildRoute(dex0: DEX, dex1: DEX): Promise<void> {
-    if (dex0.protocol === 'BalancerV2') throw 'Routes from BalancerV2 no supported'
-    return dex1.protocol === 'UniswapV2' ? buildRouteUniToUni(dex0, dex1) : buildRouteUniToBal(dex0, dex1)
-}
-
-async function buildRouteUniToUni(uniswap0: Uniswap, uniswap1: Uniswap): Promise<void> {
-    // TODO: implement
-}
-
-async function buildRouteUniToBal(uniswap: Uniswap, balancer: Balancer): Promise<void> {
-    // TODO: implement
-}
-
-
-
-// ############ 
-
-export type UniswapPair = {
-    balance0: BigNumber
-    balance1: BigNumber
-    // make sure balances converted to 18 decimals
-}
-
-export type BalancerPool = {
-    balance0: BN
-    balance1: BN
-    weight0: BN
-    weight1: BN
-    fee: BN
-}
 
 // Returns profit of flashswap between Uniswap and Balancer.
 export function flashswapProfitUniToBalancer(pairUni: UniswapPair, poolBal: BalancerPool, amountBorrow: BigNumber, isBorrowFirst: boolean): BigNumber {
@@ -81,9 +32,45 @@ export function flashswapProfitUniToUni(pair0: UniswapPair, pair1: UniswapPair, 
     }
 }
 
+// Calculates amount of tokens to borrow.
+// Returns amount of token B if Uniswap price of token B is larger,
+// otherwise amount of token A. Trade size is half of required amount to 
+// move less liquid market to more luquid market.
+// 
+// trade_size(PI%) ~= (pool_size * PI%) / 2
+export function tradeSizeUniToUni(pair0: UniswapPair, pair1: UniswapPair) {
+    const precision = 18
+    const d = BigNumber.from('10').pow(precision)
+
+    // price0/price1
+    const priceDiff = d.mul(pair0.balance0).mul(pair1.balance1).div(pair0.balance1).div(pair1.balance0).sub(d)
+
+    var amountBorrowA
+    var amountBorrowB
+    
+    // calc based on half of price impact of less liquid market
+    if (pair0.balance0.mul(pair0.balance1).lt(pair1.balance0.mul(pair1.balance1))) {
+        amountBorrowA = priceDiff.gte(0) ? pair0.balance0.mul(priceDiff).div(2).div(d).div(2) : undefined
+        amountBorrowB = priceDiff.gte(0) ? undefined : pair0.balance1.mul(-1).mul(priceDiff).div(2).div(d).div(2)
+    } else {
+        amountBorrowA = priceDiff.gte(0) ? pair1.balance0.mul(priceDiff).div(2).div(d).div(2) : undefined
+        amountBorrowB = priceDiff.gte(0) ? undefined : pair1.balance1.mul(-1).mul(priceDiff).div(2).div(d).div(2)
+    }
+    
+    // check max borrow reserves
+    if (amountBorrowA && amountBorrowA.gte(pair0.balance0)) {
+        amountBorrowA = pair0.balance0
+    }
+    if (amountBorrowB && amountBorrowB.gte(pair0.balance1)) {
+        amountBorrowB = pair0.balance1
+    }
+
+    return { amountBorrowA: amountBorrowA, amountBorrowB: amountBorrowB }
+}
+
 // Returns a required input amount of the other asset, 
 // given an output amount of an asset and pair reserves.
-function getAmountInUni(amountOut: BigNumber, reserveIn: BigNumber, reserveOut: BigNumber): BigNumber {
+export function getAmountInUni(amountOut: BigNumber, reserveIn: BigNumber, reserveOut: BigNumber): BigNumber {
     const numerator = reserveIn.mul(amountOut).mul(1000)
     const denominator = reserveOut.sub(amountOut).mul(997)
     return numerator.div(denominator).add(1)
@@ -91,15 +78,9 @@ function getAmountInUni(amountOut: BigNumber, reserveIn: BigNumber, reserveOut: 
 
 // Returns the maximum output amount of the other asset, 
 // given an input amount of an asset and pair reserves.
-function getAmountOutUni(amountIn: BigNumber, reserveIn: BigNumber, reserveOut: BigNumber): BigNumber {
+export function getAmountOutUni(amountIn: BigNumber, reserveIn: BigNumber, reserveOut: BigNumber): BigNumber {
     const amountInWithFee = amountIn.mul(997)
     const numerator = amountInWithFee.mul(reserveOut)
     const denominator = reserveIn.mul(1000).add(amountInWithFee)
     return numerator.div(denominator)
-}
-
-export function uniPrice(pair: UniswapPair, price0: boolean): BigNumber {
-    return price0
-        ? pair.balance1.mul(BigNumber.from(10).pow(18)).div(pair.balance0)
-        : pair.balance0.mul(BigNumber.from(10).pow(18)).div(pair.balance1)
 }

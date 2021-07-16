@@ -1,7 +1,7 @@
 const { BigNumber } = require("ethers")
-const { flashswapProfit, getAmountIn, createTrade } = require("./trade-utils")
-const { reservesToPrice, tokenInfo, getPairContract, diffPercent } = require("./uni-utils")
-const { runScript } = require("./utils")
+const { reservesToPrice, diffPercent } = require("../src/utils/uni")
+const { runScript } = require("../src/utils/utils")
+const { flashswapProfitUniToUni, tradeSizeUniToUni, getAmountInUni } = require('../src/trade')
 
 
 async function main() {
@@ -19,7 +19,7 @@ async function main() {
 
     // compute trade size
     console.log('----- trade -----')
-    const trade = createTrade(reserves0, reserves1)
+    const trade = tradeSizeUniToUni(reserves0, reserves1)
     printTrade(reserves0, reserves1, trade, tokenInfoA, tokenInfoB)
 
     // make a trade
@@ -40,16 +40,16 @@ function flashswap(_reserves0, _reserves1, amountBorrowA, amountBorrowB) {
     const reserves1 = [_reserves1[0], _reserves1[1]]
 
     if (amountBorrowA) {
-        const amountRequiredB = getAmountIn(amountBorrowA, reserves0[1], reserves0[0])
-        const bestSwapAmountIn = getAmountIn(amountRequiredB, reserves1[0], reserves1[1])
+        const amountRequiredB = getAmountInUni(amountBorrowA, reserves0[1], reserves0[0])
+        const bestSwapAmountIn = getAmountInUni(amountRequiredB, reserves1[0], reserves1[1])
 
         reserves0[0] = reserves0[0].sub(amountBorrowA)
         reserves0[1] = reserves0[1].add(amountRequiredB)
         reserves1[0] = reserves1[0].add(bestSwapAmountIn)
         reserves1[1] = reserves1[1].sub(amountRequiredB)
     } else {
-        const amountRequiredA = getAmountIn(amountBorrowB, reserves0[0], reserves0[1])
-        const bestSwapAmountIn = getAmountIn(amountRequiredA, reserves1[1], reserves1[0])
+        const amountRequiredA = getAmountInUni(amountBorrowB, reserves0[0], reserves0[1])
+        const bestSwapAmountIn = getAmountInUni(amountRequiredA, reserves1[1], reserves1[0])
 
         reserves0[0] = reserves0[0].add(amountRequiredA)
         reserves0[1] = reserves0[1].sub(amountBorrowB)
@@ -82,7 +82,7 @@ function printPriceDiff(reserves0, reserves1, tokenInfoA, tokenInfoB) {
 }
 
 function printTrade(reserves0, reserves1, trade, tokenInfoA, tokenInfoB) {
-    const profit = flashswapProfit(reserves0, reserves1, trade.amountBorrowA, trade.amountBorrowB)
+    const profit = flashswapProfitUniToUni(reserves0, reserves1, trade.amountBorrowA, trade.amountBorrowB)
     if (trade.amountBorrowA) {
         const profitP = divPercent(profit, trade.amountBorrowA, 5)
         console.log(`order_size = ${ethers.utils.formatUnits(trade.amountBorrowA, tokenInfoA.decimals)} ${tokenInfoA.symbol}, profit = ${ethers.utils.formatUnits(profit, tokenInfoA.decimals)} ${tokenInfoA.symbol} (${profitP}%)`)

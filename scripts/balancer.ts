@@ -1,10 +1,10 @@
 
 import { ethers } from "hardhat"
-import { runScript } from "./utils"
+import { runScript } from "../src/utils/utils"
 import cfg from '../config.json'
 import { BigNumber } from "ethers"
 import { bmath } from "@balancer-labs/sor"
-import { fromBN, toBN } from "./bn"
+import { fromBN, toBN } from "../src/utils/bn"
 import * as abi from "../abi/balancer"
 
 const valutAddress = '0xBA12222222228d8Ba445958a75a0704d566BF2C8'

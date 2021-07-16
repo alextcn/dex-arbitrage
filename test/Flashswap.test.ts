@@ -1,7 +1,7 @@
 import { expect } from "chai"
 import { ethers } from "hardhat"
 import { BigNumber, Contract, utils } from "ethers"
-import { addressEquals, logBalance } from "../scripts/utils"
+import { addressEquals, logBalance } from "../src/utils/utils"
 import cfg from '../config.json'
 
 

@@ -1,6 +1,6 @@
 
 import { ethers } from "hardhat"
-import { runScript } from "./utils"
+import { runScript } from "../src/utils/utils"
 import cfg from '../config.json'
 
 runScript(async function () {

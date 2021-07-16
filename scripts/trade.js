@@ -1,10 +1,12 @@
 
-const { runApp, addressEquals, logBalance } = require("./utils")
+const { runApp, addressEquals, logBalance } = require("../src/utils/utils")
 const cfg = require('../config.json')
 const { ethers } = require("hardhat")
 const { BigNumber } = require("ethers")
-const { getPairContract, tokenInfo } = require("./uni-utils")
-const { logBlock, createTrade, flashswapProfit } = require("./trade-utils")
+const { getPairContract, tokenInfo } = require("../src/utils/uni")
+const { logBlock } = require("../src/utils/app")
+const bal = require('../src/utils/balancer')
+const { flashswapProfitUniToUni, tradeSizeUniToUni } = require("../src/trade")
 
 // deployed FlashSwap.sol contract
 const flashswapAddress = '0x70e0ba845a1a0f2da3359c97e0285013525ffc49'
@@ -12,23 +14,23 @@ const routeAddresses = [
     // WETH
     [cfg.WETH, cfg.USDT],
     [cfg.WETH, cfg.USDC],
-    [cfg.WETH, cfg.DAI],
-    [cfg.WETH, cfg.WBTC],
-    // WBTC
-    // [cfg.WBTC, cfg.USDT], // empty pool on sushi
-    // [cfg.WBTC, cfg.USDC], // no pair on sushi
-    // [cfg.WBTC, cfg.DAI], // no pair on sushi
-    // other
-    // [cfg.FNK, cfg.USDT], // no pair on sushi
-    // [cfg.FEI, cfg.WETH], // no pair on sushi    
-    [cfg.SHIB, cfg.WETH],
-    [cfg.UNI, cfg.WETH],
-    // [cfg.SAND, cfg.WETH], // no pair on sushi
-    [cfg.AAVE, cfg.WETH],
-    [cfg.LINK, cfg.WETH],
-    [cfg.SNX, cfg.WETH],
-    [cfg.CRV, cfg.WETH],
-    [cfg.COMP, cfg.WETH]
+    // [cfg.WETH, cfg.DAI],
+    // [cfg.WETH, cfg.WBTC],
+    // // WBTC
+    // // [cfg.WBTC, cfg.USDT], // empty pool on sushi
+    // // [cfg.WBTC, cfg.USDC], // no pair on sushi
+    // // [cfg.WBTC, cfg.DAI], // no pair on sushi
+    // // other
+    // // [cfg.FNK, cfg.USDT], // no pair on sushi
+    // // [cfg.FEI, cfg.WETH], // no pair on sushi    
+    // [cfg.SHIB, cfg.WETH],
+    // [cfg.UNI, cfg.WETH],
+    // // [cfg.SAND, cfg.WETH], // no pair on sushi
+    // [cfg.AAVE, cfg.WETH],
+    // [cfg.LINK, cfg.WETH],
+    // [cfg.SNX, cfg.WETH],
+    // [cfg.CRV, cfg.WETH],
+    // [cfg.COMP, cfg.WETH]
 ]
 const dex0 = {
     name: "Uniswap",
@@ -70,18 +72,20 @@ async function flashswap(pair, borrowTokenAddress, amountBorrow) {
 }
 
 async function checkRoute(blockNumber, route) {
-    const reserves0 = await route.pair0.getReserves()
-    const reserves1 = await route.pair1.getReserves()
+    const _reserves0 = await route.pair0.getReserves()
+    const _reserves1 = await route.pair1.getReserves()
+    const pair0 = {balance0: _reserves0[0], balance1: _reserves0[1]}
+    const pair1 = {balance0: _reserves1[0], balance1: _reserves1[1]}
     
     // calc how much token should be borrowed to balance prices between two DEXes
-    const trade = createTrade(reserves0, reserves1)
+    const trade = tradeSizeUniToUni(pair0, pair1)
     const amountBorrow = trade.amountBorrowA ? trade.amountBorrowA : trade.amountBorrowB
     const tokenBorrowInfo = trade.amountBorrowA ? route.tokenAInfo : route.tokenBInfo
     
     // calculate max potential profit by flashswapping amountBorrow tokens
-    const profit = flashswapProfit(reserves0, reserves1, trade.amountBorrowA, trade.amountBorrowB)
+    const profit = flashswapProfitUniToUni(pair0, pair1, trade.amountBorrowA ? trade.amountBorrowA : trade.amountBorrowB, Boolean(trade.amountBorrowA))
     
-    logBlock(blockNumber, dex0, dex1, route.tokenAInfo, route.tokenBInfo, reserves0, reserves1, tokenBorrowInfo, amountBorrow, profit, true)
+    logBlock(blockNumber, dex0, dex1, route.tokenAInfo, route.tokenBInfo, _reserves0, _reserves1, tokenBorrowInfo, amountBorrow, profit, true)
     
     // swap if Uniswap price is higher than Sushiswap and there is an opportunity for profit
     if (!cfg.watchOnly && profit.gte(0) && !isSwapping) {
@@ -126,8 +130,14 @@ async function main() {
         console.log(`route[${i}]: [${route.tokenAInfo.symbol}/${route.tokenBInfo.symbol}]`)
     }
 
+    const poolId = bal.getPoolId(cfg.WETH, cfg.DAI)
+    const pool = bal.getPoolContract(poolId)
+
     ethers.provider.on('block', async function (blockNumber) {
-        routes.forEach(route => checkRoute(blockNumber, route)) 
+        routes.forEach(route => checkRoute(blockNumber, route))
+
+        // TODO: take vault
+
     })
 }
 
