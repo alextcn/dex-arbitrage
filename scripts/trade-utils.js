@@ -1,6 +1,7 @@
 
 const { BigNumber } = require("ethers")
 const { diffPercent, reservesToPrice } = require("./uni-utils")
+const { bmath } = require('@balancer-labs/sor')
 
 
 // TODO: check that trade size is larger than pool size
@@ -55,6 +56,29 @@ function flashswapProfit(reserves0, reserves1, amountBorrowA, amountBorrowB) {
     }
 }
 
+
+// Assumed token order is the same
+// uniReserves = [BigNumber(A), BigNumber(B)], balPool={reserveA: BigNumber, reserveB: BigNumber, weightA: BigNumber, weightB: BigNumber}
+function flashswapProfitUniToBal(uniReserves, balPool, amountBorrowA) {
+    const amountRequiredB = getAmountIn(amountBorrowA, uniReserves.reserveB, uniReserves.reservesA)
+    
+    const amountIn = ethers.utils.parseUnits('10', 18)    
+    const amountOutBN = bmath.calcOutGivenIn(toBN(wethBalance), toBN(wethWeight), toBN(daiBalance), toBN(daiWeight), toBN(amountIn), toBN(swapFee))
+    const amountOut = fromBN(amountOutBN)
+
+
+    // bmath.calcSpotPrice
+    // TODO: convert this line to Balancer calc
+    // TODO: make same function with BigNumber conversions
+    
+    bmath.calcInGivenOut()
+
+    const minSwapAmountIn = getAmountIn(amountRequiredB, reserves1[0], reserves1[1])
+    
+
+    return amountRequiredB.sub(minSwapAmountIn)
+}
+
 // Returns a required input amount of the other asset, 
 // given an output amount of an asset and pair reserves.
 function getAmountIn(amountOut, reserveIn, reserveOut) {
@@ -69,7 +93,7 @@ function getAmountOut(amountIn, reserveIn, reserveOut) {
     const amountInWithFee = amountIn.mul(997)
     const numerator = amountInWithFee.mul(reserveOut)
     const denominator = reserveIn.mul(1000).add(amountInWithFee)
-    return amountOut = numerator.div(denominator)
+    return numerator.div(denominator)
 }
 
 function logBlock(blockNumber, dex0, dex1, tokenAInfo, tokenBInfo, reserves0, reserves1, tokenBorrowInfo, amountBorrow, profit, oneline) {

@@ -9,6 +9,9 @@
         "router": "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F"
     },
     "aaveProvider": "0xb53c1a33016b2dc2ff3653530bff1848a515c8c5",
+    "balancer": {
+        "vault": "0xBA12222222228d8Ba445958a75a0704d566BF2C8"
+    },
     "WETH": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
     "DAI": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
     "USDC": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",

@@ -32,7 +32,7 @@ export async function logBalance(address: string, ...tokens: string[]) {
     }
 }
 
-export function addressEquals(address1: string, address2: string) {
+export function addressEquals(address1: string, address2: string): boolean {
     return address1.toUpperCase() === address2.toUpperCase()
 }
 

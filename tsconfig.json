@@ -72,7 +72,9 @@
   },
   "include": [
     "./scripts",
-    "./test"
+    "./test",
+    "./abi",
+    "./src"
   ],
   "files": [
     "./hardhat.config.ts",

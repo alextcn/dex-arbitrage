@@ -41,6 +41,11 @@ const dex1 = {
     router: cfg.sushi.router
 }
 
+const balancer = {
+    name: "Balancer",
+    vault: cfg.balancer.vault
+}
+
 var senderAddress
 var isSwapping = false
 
