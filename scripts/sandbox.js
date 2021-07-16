@@ -2,9 +2,18 @@ const { BigNumber } = require("ethers")
 const { reservesToPrice, diffPercent } = require("../src/utils/uni")
 const { runScript } = require("../src/utils/utils")
 const { flashswapProfitUniToUni, tradeSizeUniToUni, getAmountInUni } = require('../src/trade')
+const { Token } = require("../src/token")
 
 
 async function main() {
+    // emulateTrade()
+
+    const token = await Token.buildToken('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
+    console.log(token)
+    console.log(token.format(BigNumber.from('166527132537660'), true))
+}
+
+function emulateTrade() {
     const tokenInfoA = {"address":"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48","name":"USD Coin","symbol":"USDC","decimals":6}
     const tokenInfoB = {"address":"0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2","name":"Wrapped Ether","symbol":"WETH","decimals":18}
 

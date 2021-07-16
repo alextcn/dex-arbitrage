@@ -1,4 +1,5 @@
 import { ethers } from "hardhat"
+import { Token } from "../token"
 
 export function runScript(script: () => Promise<any>) {
     script()
@@ -16,6 +17,15 @@ export function runApp(app: () => Promise<any>) {
             console.log(error)
             process.exit(1)
         })
+}
+
+export function objectsToTokens(objects: any[]): Map<string, Token> {
+    const tokens : Map<string, Token> = new Map()
+    objects.forEach(function(o) {
+        const token = new Token(o.address, o.name, o.symbol, o.decimals)
+        tokens.set(o.address, token)
+    })
+    return tokens
 }
 
 export async function logBalance(address: string, ...tokens: string[]) {

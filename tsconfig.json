@@ -78,7 +78,8 @@
   ],
   "files": [
     "./hardhat.config.ts",
-    "./config.json"
+    "./config.json",
+    "./tokens.json"
   ],
   "exclude": [
     "./build",

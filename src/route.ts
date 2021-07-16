@@ -1,22 +1,38 @@
+import { Token } from "@uniswap/sdk"
 import { Balancer, DEX, Uniswap } from "./dex"
+import { BalancerPool, pairHasValue, UniswapPair } from "./pair"
 
 
-interface Route {
-    // TODO: 
+export interface UniToUniRoute {
+    token0: Token
+    token1: Token
+    pairFrom: UniswapPair
+    pairTo: UniswapPair
 }
+
+export interface UniToBalRoute {
+    token0: Token
+    token1: Token
+    pairFrom: UniswapPair
+    poolTo: BalancerPool
+}
+
+export type Route = UniToUniRoute | UniToBalRoute
 
 // TODO: pass pair of tokens
-export async function buildRoute(dex0: DEX, dex1: DEX): Promise<Route> {
-    if (dex0.protocol === 'BalancerV2') throw 'Routes from BalancerV2 no supported'
-    return dex1.protocol === 'UniswapV2' ? buildRouteUniToUni(dex0, dex1) : buildRouteUniToBal(dex0, dex1)
+export async function buildRoute(dexFrom: DEX, dexTo: DEX, token0: Token, token1: Token): Promise<Route> {
+    if (dexFrom.protocol === 'BalancerV2') throw 'Routes from BalancerV2 no supported'
+    return dexTo.protocol === 'UniswapV2' 
+        ? buildRouteUniToUni(dexFrom, dexTo, token0, token1) 
+        : buildRouteUniToBal(dexFrom, dexTo, token0, token1)
 }
 
-async function buildRouteUniToUni(uniswap0: Uniswap, uniswap1: Uniswap): Promise<Route> {
+async function buildRouteUniToUni(uniFrom: Uniswap, uniTo: Uniswap, token0: Token, token1: Token): Promise<UniToUniRoute> {
     // TODO: implement
     return {}
 }
 
-async function buildRouteUniToBal(uniswap: Uniswap, balancer: Balancer): Promise<Route> {
+async function buildRouteUniToBal(uniFrom: Uniswap, balancerTo: Balancer, token0: Token, token1: Token): Promise<UniToBalRoute> {
     // TODO: implement
     return {}
 }
