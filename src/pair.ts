@@ -30,6 +30,10 @@ export abstract class Pair {
 
     static id: (dexName: string, token0: string, token1: string) => string 
         = (d, t0, t1) => '_id_' + d + t0 + t1
+
+    name(): string {
+        return `${this.dex.name}-${this.token0.symbol}/${this.token1.symbol}`
+    }
 }
 
 
@@ -44,7 +48,7 @@ export class UniswapPair extends Pair {
         this.contract = contract
     }
 
-    hasValue = () => !this.balance0 && !this.balance1
+    hasValue = () => !!this.balance0 && !!this.balance1
 
     updateReserves(balance0: BigNumber, balance1: BigNumber, block: number): void {
         this.balance0 = balance0
@@ -81,7 +85,7 @@ export class BalancerPair extends Pair {
         this.fee = fee
     }
 
-    hasValue = () => !this.balance0 && !this.balance1
+    hasValue = () => !!this.balance0 && !!this.balance1
     
     updateReserves(balance0: BigNumber, balance1: BigNumber, block: number): void {
         this.balance0 = balance0

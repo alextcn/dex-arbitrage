@@ -1,38 +1,81 @@
-import { Token } from "@uniswap/sdk"
+import { BigNumber } from "ethers"
 import { Balancer, DEX, Uniswap } from "./dex"
-import { BalancerPool, UniswapPair } from "./pair"
+import { BalancerPair, Pair, UniswapPair } from "./pair"
+import { Token } from "./token"
+import { flashswapProfitUniToBalancer, flashswapProfitUniToUni, Trade, tradeSizeUniToBalancer, tradeSizeUniToUni } from "./trade"
 
+export abstract class Route {
+    readonly token0: Token
+    readonly token1: Token
+    readonly pairFrom: Pair
+    readonly pairTo: Pair
 
-export interface UniToUniRoute {
-    token0: Token
-    token1: Token
-    pairFrom: UniswapPair
-    pairTo: UniswapPair
+    constructor(pairFrom: Pair, pairTo: Pair) {
+        if (pairFrom.token0.address !== pairTo.token0.address || 
+            pairFrom.token1.address !== pairTo.token1.address) throw 'Pairs have different tokens'
+
+        this.token0 = pairFrom.token0
+        this.token1 = pairFrom.token1
+        this.pairFrom = pairFrom
+        this.pairTo = pairTo
+    }
+
+    abstract calculateTrade(): Trade
+
+    name(): string {
+        return `[${this.pairFrom.dex.name}->${this.pairTo.dex.name}] ${this.token0.symbol}/${this.token1.symbol}`
+    }
 }
 
-export interface UniToBalRoute {
-    token0: Token
-    token1: Token
-    pairFrom: UniswapPair
-    poolTo: BalancerPool
+export class UniToUniRoute extends Route {
+    readonly pairFrom: UniswapPair
+    readonly pairTo: UniswapPair
+
+    constructor(pairFrom: UniswapPair, pairTo: UniswapPair) {
+        super(pairFrom, pairTo)
+        
+        this.pairFrom = pairFrom
+        this.pairTo = pairTo
+    }
+
+    calculateTrade(): Trade {
+        const trade = tradeSizeUniToUni(this.pairFrom, this.pairTo)
+        const profit = flashswapProfitUniToUni(this.pairFrom, this.pairTo, trade.amountBorrow, trade.firstToken)
+        return {
+            amountBorrow: trade.amountBorrow,
+            firstToken: trade.firstToken,
+            profit: profit
+        }
+    }
+
 }
 
-export type Route = UniToUniRoute | UniToBalRoute
+export class UniToBalRoute extends Route {
+    readonly pairFrom: UniswapPair
+    readonly pairTo: BalancerPair
 
-// TODO: pass pair of tokens
-export async function buildRoute(dexFrom: DEX, dexTo: DEX, token0: Token, token1: Token): Promise<Route> {
-    if (dexFrom.protocol === 'BalancerV2') throw 'Routes from BalancerV2 no supported'
-    return dexTo.protocol === 'UniswapV2' 
-        ? buildRouteUniToUni(dexFrom, dexTo, token0, token1) 
-        : buildRouteUniToBal(dexFrom, dexTo, token0, token1)
+    constructor(pairFrom: UniswapPair, pairTo: BalancerPair) {
+        super(pairFrom, pairTo)
+
+        this.pairFrom = pairFrom
+        this.pairTo = pairTo
+    }
+
+    calculateTrade() : Trade {
+        const trade = tradeSizeUniToBalancer(this.pairFrom, this.pairTo)
+        const profit = flashswapProfitUniToBalancer(this.pairFrom, this.pairTo, trade.amountBorrow, trade.firstToken)
+        return {
+            amountBorrow: trade.amountBorrow,
+            firstToken: trade.firstToken,
+            profit: profit
+        }
+    }
 }
 
-async function buildRouteUniToUni(uniFrom: Uniswap, uniTo: Uniswap, token0: Token, token1: Token): Promise<UniToUniRoute> {
-    // TODO: implement
-    return {}
-}
-
-async function buildRouteUniToBal(uniFrom: Uniswap, balancerTo: Balancer, token0: Token, token1: Token): Promise<UniToBalRoute> {
-    // TODO: implement
-    return {}
+export function buildRoute(pairFrom: Pair, pairTo: Pair): Route {
+    if (pairFrom instanceof BalancerPair) throw 'Routes from BalancerV2 aren\'t supported'
+    
+    return pairTo instanceof UniswapPair
+        ? new UniToUniRoute(pairFrom as UniswapPair, pairTo)
+        : new UniToBalRoute(pairFrom as UniswapPair, pairTo as BalancerPair)
 }

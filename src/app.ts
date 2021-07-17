@@ -1,15 +1,13 @@
-import { DEX, Uniswap } from "./dex"
+import { DEX } from "./dex"
 import { objectsToTokens, runApp } from "./utils/utils"
 import cfg from '../config.json'
 import tokenList from '../tokens.json'
 import { ethers } from "hardhat"
 import { buildRoute, Route } from "./route"
-import { Token } from "./token"
-import { BigNumber, Contract } from "ethers"
 import { BalancerPair, Pair, PairFactory, UniswapPair } from "./pair"
-import { BalancerPoolContract, BalancerVaultContract, UniswapPairContract } from "./contracts"
+import { BalancerVaultContract, UniswapPairContract } from "./contracts"
 import * as abi from "../abi/balancer"
-import { getPoolId } from "./utils/balancer"
+import { logTrade } from "./utils/app"
 
 
 var senderAddress: string
@@ -18,24 +16,24 @@ var senderAddress: string
 const routeAddresses: string[][] = [
     // WETH
     [cfg.WETH, cfg.USDT],
-    [cfg.WETH, cfg.USDC],
+    // // [cfg.WETH, cfg.USDC],
     [cfg.WETH, cfg.DAI],
     [cfg.WETH, cfg.WBTC],
-    // // WBTC
-    // // [cfg.WBTC, cfg.USDT], // empty pool on sushi
-    // // [cfg.WBTC, cfg.USDC], // no pair on sushi
-    // // [cfg.WBTC, cfg.DAI], // no pair on sushi
-    // // other
-    // // [cfg.FNK, cfg.USDT], // no pair on sushi
-    // // [cfg.FEI, cfg.WETH], // no pair on sushi    
-    // [cfg.SHIB, cfg.WETH],
-    // [cfg.UNI, cfg.WETH],
-    // // [cfg.SAND, cfg.WETH], // no pair on sushi
-    // [cfg.AAVE, cfg.WETH],
-    // [cfg.LINK, cfg.WETH],
-    // [cfg.SNX, cfg.WETH],
-    // [cfg.CRV, cfg.WETH],
-    // [cfg.COMP, cfg.WETH]
+    // WBTC
+    // [cfg.WBTC, cfg.USDT], // empty pool on sushi
+    // [cfg.WBTC, cfg.USDC], // no pair on sushi
+    // [cfg.WBTC, cfg.DAI], // no pair on sushi
+    // other
+    // [cfg.FNK, cfg.USDT], // no pair on sushi
+    // [cfg.FEI, cfg.WETH], // no pair on sushi    
+    [cfg.SHIB, cfg.WETH],
+    [cfg.UNI, cfg.WETH],
+    // [cfg.SAND, cfg.WETH], // no pair on sushi
+    [cfg.AAVE, cfg.WETH],
+    [cfg.LINK, cfg.WETH],
+    [cfg.SNX, cfg.WETH],
+    [cfg.CRV, cfg.WETH],
+    [cfg.COMP, cfg.WETH]
 ]
 
 
@@ -59,7 +57,8 @@ const balancer: DEX = {
 
 const exchanges = [
     [uniswap, sushiswap],
-    [uniswap, balancer]
+    [uniswap, balancer],
+    [sushiswap, balancer]
 ]
 
 async function main() {
@@ -82,7 +81,7 @@ async function main() {
             if (!pairs.has(idFrom)) {
                 const pair = await pairFactory.makePair(dexFrom, token0, token1)
                 if (pair) pairs.set(idFrom, pair)
-                else console.log(`route[${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} --- missing, no pair for ${dexFrom.name}`)
+                else console.log(`[-] [${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} – no pair for ${dexFrom.name}`)
             }
             const pairFrom = pairs.get(idFrom)
 
@@ -90,22 +89,25 @@ async function main() {
             if (!pairs.has(idTo)) {
                 const pair = await pairFactory.makePair(dexTo, token0, token1)
                 if (pair) pairs.set(idTo, pair)
-                else console.log(`route[${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} [X] skipping, no pair for ${dexTo.name}`)
+                else console.log(`[-] [${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} – no pair for ${dexTo.name}`)
             }
             const pairTo = pairs.get(idTo)
 
             if (!pairFrom || !pairTo) return
             
-            // TODO: build routes from pairs
-            console.log(`route[${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol}`)
+            const route = buildRoute(pairFrom, pairTo)
+            routes.push(route)
+            
+            console.log(`[+] ${route.name()}`)
         }))
         
     }
-    console.log('started')
+    console.log(`${pairs.size} pairs and ${routes.length} routes initialized`)
 
-
+    // TODO: fix async processing
     ethers.provider.on('block', async function (blockNumber) {
         console.log(`#${blockNumber} ---------------------------`)
+
         // update pairs
         await Promise.all(Array.from(pairs).map(async ([, pair]) => {
             // TODO: what block number to pass?
@@ -118,8 +120,17 @@ async function main() {
             }
         }))
 
-        // check routes for profit
-        // TODO: ...
+        // check routes for profitable trades
+        const trades = routes.map((route) => {
+            const trade = route.calculateTrade()
+            return { route: route, trade: trade }
+        })
+        .filter((x) => x.trade.profit.gt(0))
+
+        // log profitable trades
+        trades.forEach((x) => logTrade(blockNumber, x.route, x.trade))
+
+        // execute flashswap
     })
 }
 
