@@ -2,7 +2,7 @@ import { BigNumber, Contract } from "ethers";
 
 
 export interface UniswapPairContract extends Contract {
-    getReserves: () => Promise<[reserve0: BigNumber, reserve1: BigNumber, lastChangeBlock: number]>
+    getReserves: () => Promise<[reserve0: BigNumber, reserve1: BigNumber, blockTimestampLast: number]>
 }
 
 export interface BalancerVaultContract extends Contract {

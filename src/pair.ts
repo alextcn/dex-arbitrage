@@ -5,6 +5,8 @@ import { Balancer, DEX, Uniswap } from "./dex"
 import { Token } from "./token"
 import { getPoolId } from "./utils/balancer"
 import * as abi from "../abi/balancer"
+import { bmath } from "@balancer-labs/sor"
+import { fromBN, toBN } from "./utils/bn"
 
 
 export abstract class Pair {
@@ -48,6 +50,15 @@ export class UniswapPair extends Pair {
         this.balance0 = balance0
         this.balance1 = balance1
         this.lastChangeBlock = block
+
+        
+        console.log(`[${this.dex.name} ${this.token0.symbol}/${this.token1.symbol}] balance0 = ${this.token0.format(balance0, true)}, balance1 = ${this.token1.format(balance1, true)} | ${this.token0.symbol} = ${this._price0()}`)
+    }
+
+    _price0(): string {
+        // TODO: check decimals
+        const p = this.balance1!.mul(BigNumber.from(10).pow(this.token0.decimals)).div(this.balance0!)
+        return this.token1.format(p, true)
     }
 }
 
@@ -76,6 +87,14 @@ export class BalancerPair extends Pair {
         this.balance0 = balance0
         this.balance1 = balance1
         this.lastChangeBlock = block
+
+        console.log(`[${this.dex.name} ${this.token0.symbol}/${this.token1.symbol}] balance0 = ${this.token0.format(balance0, true)}, balance1 = ${this.token1.format(balance1, true)} | ${this.token0.symbol} = ${this._price0()}`)
+    }
+
+    _price0(): string {
+        // TODO: check decimals
+        const p = fromBN(bmath.calcSpotPrice(toBN(this.balance1!), toBN(this.weight1), toBN(this.balance0!), toBN(this.weight0), toBN(BigNumber.from(0))))
+        return this.token1.format(p, true)
     }
 }
 

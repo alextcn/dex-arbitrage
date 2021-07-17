@@ -104,13 +104,23 @@ async function main() {
     console.log('started')
 
 
-    // ethers.provider.on('block', async function (blockNumber) {
-    //     // 1. update pool values of all pairs
-    //     // TODO: ...
+    ethers.provider.on('block', async function (blockNumber) {
+        console.log(`#${blockNumber} ---------------------------`)
+        // update pairs
+        await Promise.all(Array.from(pairs).map(async ([, pair]) => {
+            // TODO: what block number to pass?
+            if (pair instanceof UniswapPair) {
+                const [reserve0, reserve1, blockTimestampLast] = await pair.contract.getReserves()
+                pair.updateReserves(reserve0, reserve1, blockNumber)
+            } if (pair instanceof BalancerPair) {
+                const [, [balance0, balance1], lastChangeBlock] = await vault.getPoolTokens(pair.poolId)
+                pair.updateReserves(balance0, balance1, blockNumber)
+            }
+        }))
 
-    //     // 2. check routes for profit
-    //     // TODO: ...
-    // })
+        // check routes for profit
+        // TODO: ...
+    })
 }
 
 runApp(main)
