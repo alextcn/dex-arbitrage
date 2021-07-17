@@ -1,11 +1,15 @@
-import { DEX } from "./dex"
+import { DEX, Uniswap } from "./dex"
 import { objectsToTokens, runApp } from "./utils/utils"
 import cfg from '../config.json'
 import tokenList from '../tokens.json'
 import { ethers } from "hardhat"
 import { buildRoute, Route } from "./route"
 import { Token } from "./token"
-import { BigNumber } from "ethers"
+import { BigNumber, Contract } from "ethers"
+import { BalancerPair, Pair, PairFactory, UniswapPair } from "./pair"
+import { BalancerPoolContract, BalancerVaultContract, UniswapPairContract } from "./contracts"
+import * as abi from "../abi/balancer"
+import { getPoolId } from "./utils/balancer"
 
 
 var senderAddress: string
@@ -15,8 +19,8 @@ const routeAddresses: string[][] = [
     // WETH
     [cfg.WETH, cfg.USDT],
     [cfg.WETH, cfg.USDC],
-    // [cfg.WETH, cfg.DAI],
-    // [cfg.WETH, cfg.WBTC],
+    [cfg.WETH, cfg.DAI],
+    [cfg.WETH, cfg.WBTC],
     // // WBTC
     // // [cfg.WBTC, cfg.USDT], // empty pool on sushi
     // // [cfg.WBTC, cfg.USDC], // no pair on sushi
@@ -58,47 +62,55 @@ const exchanges = [
     [uniswap, balancer]
 ]
 
-// const routes: Route[] = [
-//     {
-//         dexFrom: uniswap,
-//         dexTo: sushiswap
-//     }
-    
-//     [cfg.WETH, cfg.USDC],
-//     [cfg.CRV, cfg.WETH],
-//     [cfg.COMP, cfg.WETH]
-// ]
-
-
 async function main() {
     senderAddress = await (ethers.provider.getSigner()).getAddress()
     const tokens = objectsToTokens(Object.values(tokenList))
-    
-    
-    exchanges.forEach(function([dexFrom, dexTo]) {
-        routeAddresses.forEach(function([_token0, _token1]) {
+
+    const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault) as BalancerVaultContract
+    const pairFactory = new PairFactory(vault)
+
+    const pairs: Map<string, Pair> = new Map()
+    const routes: Route[] = []
+
+    for (const [dexFrom, dexTo] of exchanges) {
+        await Promise.all(routeAddresses.map(async ([_token0, _token1]) => {
             const [t0, t1] = _token0.toLowerCase() < _token1.toLowerCase() ? [_token0, _token1] : [_token1, _token0]
             const token0 = tokens.get(t0)!
             const token1 = tokens.get(t1)!
             
-            // TODO: build routes
-        })
-    })
+            const idFrom = Pair.id(dexFrom.name, token0.address, token1.address)
+            if (!pairs.has(idFrom)) {
+                const pair = await pairFactory.makePair(dexFrom, token0, token1)
+                if (pair) pairs.set(idFrom, pair)
+                else console.log(`route[${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} --- missing, no pair for ${dexFrom.name}`)
+            }
+            const pairFrom = pairs.get(idFrom)
 
-    
-    // // build routes
-    // const routes = []
-    // for (var i = 0; i < routeAddresses.length; i++) {
-    //     const [tokenAAddress, tokenBAddress] = routeAddresses[i]
-    //     const route = await buildRoute(tokenAAddress, tokenBAddress)
-    //     routes.push(route)
-    //     console.log(`route[${i}]: [${route.tokenAInfo.symbol}/${route.tokenBInfo.symbol}]`)
-    // }
+            const idTo = Pair.id(dexTo.name, token0.address, token1.address)
+            if (!pairs.has(idTo)) {
+                const pair = await pairFactory.makePair(dexTo, token0, token1)
+                if (pair) pairs.set(idTo, pair)
+                else console.log(`route[${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} [X] skipping, no pair for ${dexTo.name}`)
+            }
+            const pairTo = pairs.get(idTo)
+
+            if (!pairFrom || !pairTo) return
+            
+            // TODO: build routes from pairs
+            console.log(`route[${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol}`)
+        }))
+        
+    }
+    console.log('started')
 
 
-    ethers.provider.on('block', async function (blockNumber) {
-        // routes.forEach(route => checkRoute(blockNumber, route))
-    })
+    // ethers.provider.on('block', async function (blockNumber) {
+    //     // 1. update pool values of all pairs
+    //     // TODO: ...
+
+    //     // 2. check routes for profit
+    //     // TODO: ...
+    // })
 }
 
 runApp(main)

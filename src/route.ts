@@ -1,6 +1,6 @@
 import { Token } from "@uniswap/sdk"
 import { Balancer, DEX, Uniswap } from "./dex"
-import { BalancerPool, pairHasValue, UniswapPair } from "./pair"
+import { BalancerPool, UniswapPair } from "./pair"
 
 
 export interface UniToUniRoute {

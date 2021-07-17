@@ -85,7 +85,7 @@ async function checkRoute(blockNumber, route) {
     // calculate max potential profit by flashswapping amountBorrow tokens
     const profit = flashswapProfitUniToUni(pair0, pair1, trade.amountBorrowA ? trade.amountBorrowA : trade.amountBorrowB, Boolean(trade.amountBorrowA))
     
-    logBlock(blockNumber, dex0, dex1, route.tokenAInfo, route.tokenBInfo, _reserves0, _reserves1, tokenBorrowInfo, amountBorrow, profit, true)
+    logBlock(blockNumber, dex0, dex1, route.tokenAInfo, route.tokenBInfo, _reserves0, reserves1, tokenBorrowInfo, amountBorrow, profit, true)
     
     // swap if Uniswap price is higher than Sushiswap and there is an opportunity for profit
     if (!cfg.watchOnly && profit.gte(0) && !isSwapping) {

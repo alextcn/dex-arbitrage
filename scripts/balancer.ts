@@ -9,6 +9,7 @@ import * as abi from "../abi/balancer"
 
 const valutAddress = '0xBA12222222228d8Ba445958a75a0704d566BF2C8'
 const poolID = '0x0b09dea16768f0799065c475be02919503cb2a3500020000000000000000001a' // 60WETH-40DAI
+// const poolID = '0x96646936b91d6b9d7d0c47c496afbf3d6ec7b6f8000200000000000000000019' // 50WETH-50USDC
 
 
 runScript(async function () {
