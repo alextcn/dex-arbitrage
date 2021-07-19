@@ -1,4 +1,4 @@
-import { DEX } from "./dex"
+import { Balancer, DEX, Uniswap } from "./dex"
 import { objectsToTokens, runApp } from "./utils/utils"
 import cfg from '../config.json'
 import tokenList from '../tokens.json'
@@ -7,49 +7,47 @@ import { buildRoute, Route } from "./route"
 import { BalancerPair, Pair, PairFactory, UniswapPair } from "./pair"
 import { BalancerVaultContract, UniswapPairContract } from "./contracts"
 import * as abi from "../abi/balancer"
-import { logTrade } from "./utils/app"
+import { logPair, logTrade } from "./utils/app"
 
-
-var senderAddress: string
 
 // TODO: read from config
 const routeAddresses: string[][] = [
     // WETH
     [cfg.WETH, cfg.USDT],
-    // // [cfg.WETH, cfg.USDC],
+    [cfg.WETH, cfg.USDC],
     [cfg.WETH, cfg.DAI],
-    [cfg.WETH, cfg.WBTC],
-    // WBTC
-    // [cfg.WBTC, cfg.USDT], // empty pool on sushi
-    // [cfg.WBTC, cfg.USDC], // no pair on sushi
-    // [cfg.WBTC, cfg.DAI], // no pair on sushi
-    // other
-    // [cfg.FNK, cfg.USDT], // no pair on sushi
-    // [cfg.FEI, cfg.WETH], // no pair on sushi    
-    [cfg.SHIB, cfg.WETH],
-    [cfg.UNI, cfg.WETH],
-    // [cfg.SAND, cfg.WETH], // no pair on sushi
-    [cfg.AAVE, cfg.WETH],
-    [cfg.LINK, cfg.WETH],
-    [cfg.SNX, cfg.WETH],
-    [cfg.CRV, cfg.WETH],
-    [cfg.COMP, cfg.WETH]
+    // [cfg.WETH, cfg.WBTC],
+    // // WBTC
+    // // [cfg.WBTC, cfg.USDT], // empty pool on sushi
+    // // [cfg.WBTC, cfg.USDC], // no pair on sushi
+    // // [cfg.WBTC, cfg.DAI], // no pair on sushi
+    // // other
+    // // [cfg.FNK, cfg.USDT], // no pair on sushi
+    // // [cfg.FEI, cfg.WETH], // no pair on sushi    
+    // [cfg.SHIB, cfg.WETH],
+    // [cfg.UNI, cfg.WETH],
+    // // [cfg.SAND, cfg.WETH], // no pair on sushi
+    // [cfg.AAVE, cfg.WETH],
+    // [cfg.LINK, cfg.WETH],
+    // [cfg.SNX, cfg.WETH],
+    // [cfg.CRV, cfg.WETH],
+    // [cfg.COMP, cfg.WETH]
 ]
 
 
-const uniswap: DEX = {
+const uniswap: Uniswap = {
     name: 'Uniswap',
     protocol: 'UniswapV2',
     factory: cfg.uni.factory,
     router: cfg.uni.router
 }
-const sushiswap: DEX = {
+const sushiswap: Uniswap = {
     name: 'Sushiswap',
     protocol: 'UniswapV2',
     factory: cfg.sushi.factory,
     router: cfg.sushi.router
 }
-const balancer: DEX = {
+const balancer: Balancer = {
     name: 'Balancer',
     protocol: 'BalancerV2',
     vault: cfg.balancer.vault
@@ -61,15 +59,14 @@ const exchanges = [
     [sushiswap, balancer]
 ]
 
-async function main() {
-    senderAddress = await (ethers.provider.getSigner()).getAddress()
+
+async function initPairsAndRoutes(): Promise<[Map<string, Pair>, Route[]]> {
     const tokens = objectsToTokens(Object.values(tokenList))
-
-    const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault) as BalancerVaultContract
-    const pairFactory = new PairFactory(vault)
-
     const pairs: Map<string, Pair> = new Map()
     const routes: Route[] = []
+    
+    const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault) as BalancerVaultContract
+    const pairFactory = new PairFactory(vault)
 
     for (const [dexFrom, dexTo] of exchanges) {
         await Promise.all(routeAddresses.map(async ([_token0, _token1]) => {
@@ -102,8 +99,15 @@ async function main() {
         }))
         
     }
+    return [pairs, routes]
+}
+
+async function main() {
+    const [pairs, routes] = await initPairsAndRoutes()
     console.log(`${pairs.size} pairs and ${routes.length} routes initialized`)
 
+    const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault) as BalancerVaultContract
+    
     // TODO: fix async processing
     ethers.provider.on('block', async function (blockNumber) {
         console.log(`#${blockNumber} ---------------------------`)
@@ -118,6 +122,7 @@ async function main() {
                 const [, [balance0, balance1], lastChangeBlock] = await vault.getPoolTokens(pair.poolId)
                 pair.updateReserves(balance0, balance1, blockNumber)
             }
+            logPair(pair)
         }))
 
         // check routes for profitable trades

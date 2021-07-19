@@ -6,7 +6,8 @@ import { Token } from "./token"
 import { getPoolId } from "./utils/balancer"
 import * as abi from "../abi/balancer"
 import { bmath } from "@balancer-labs/sor"
-import { fromBN, toBN } from "./utils/bn"
+import { addDecimals, BN, fromBN, subDecimals, toBN } from "./utils/bn"
+import { logPair } from "./utils/app"
 
 
 export abstract class Pair {
@@ -18,6 +19,8 @@ export abstract class Pair {
     lastChangeBlock: number
 
     abstract hasValue: () => boolean
+    abstract price0: () => BigNumber | undefined
+    abstract price1: () => BigNumber | undefined
 
     constructor(dex: DEX, token0: Token, token1: Token, contract: Contract) {
         this.id = Pair.id(dex.name, token0.address, token1.address)
@@ -50,19 +53,20 @@ export class UniswapPair extends Pair {
 
     hasValue = () => !!this.balance0 && !!this.balance1
 
+    price0 = () => {
+        if (!this.hasValue) return
+        return this.balance1!.mul(BigNumber.from(10).pow(this.token0.decimals)).div(this.balance0!)
+    }
+
+    price1 = () => {
+        if (!this.hasValue) return
+        return this.balance0!.mul(BigNumber.from(10).pow(this.token1.decimals)).div(this.balance1!)
+    }
+
     updateReserves(balance0: BigNumber, balance1: BigNumber, block: number): void {
         this.balance0 = balance0
         this.balance1 = balance1
         this.lastChangeBlock = block
-
-        
-        console.log(`[${this.dex.name} ${this.token0.symbol}/${this.token1.symbol}] balance0 = ${this.token0.format(balance0, true)}, balance1 = ${this.token1.format(balance1, true)} | ${this.token0.symbol} = ${this._price0()}`)
-    }
-
-    _price0(): string {
-        // TODO: check decimals
-        const p = this.balance1!.mul(BigNumber.from(10).pow(this.token0.decimals)).div(this.balance0!)
-        return this.token1.format(p, true)
     }
 }
 
@@ -87,18 +91,30 @@ export class BalancerPair extends Pair {
 
     hasValue = () => !!this.balance0 && !!this.balance1
     
+    price0 = () => {
+        if (!this.hasValue) return
+        
+        const d0 = 18 - this.token0.decimals
+        const d1 = 18 - this.token1.decimals
+
+        const price = bmath.calcSpotPrice(toBN(this.balance1!, d1), toBN(this.weight1), toBN(this.balance0!, d0), toBN(this.weight0), new BN(0))
+        return fromBN(price, d1)
+    }
+
+    price1 = () => {
+        if (!this.hasValue) return
+        
+        const d0 = 18 - this.token0.decimals
+        const d1 = 18 - this.token1.decimals
+
+        const price = bmath.calcSpotPrice(toBN(this.balance0!, d0), toBN(this.weight0), toBN(this.balance1!, d1), toBN(this.weight1), new BN(0))
+        return fromBN(price, d0)
+    }
+
     updateReserves(balance0: BigNumber, balance1: BigNumber, block: number): void {
         this.balance0 = balance0
         this.balance1 = balance1
         this.lastChangeBlock = block
-
-        console.log(`[${this.dex.name} ${this.token0.symbol}/${this.token1.symbol}] balance0 = ${this.token0.format(balance0, true)}, balance1 = ${this.token1.format(balance1, true)} | ${this.token0.symbol} = ${this._price0()}`)
-    }
-
-    _price0(): string {
-        // TODO: check decimals
-        const p = fromBN(bmath.calcSpotPrice(toBN(this.balance1!), toBN(this.weight1), toBN(this.balance0!), toBN(this.weight0), toBN(BigNumber.from(0))))
-        return this.token1.format(p, true)
     }
 }
 
@@ -116,9 +132,8 @@ export class PairFactory {
             : this.makeBalancerPool(dex, token0, token1)
     }
 
-    // TODO: support no pair
     async makeUniswapPair(dex: Uniswap, token0: Token, token1: Token): Promise<UniswapPair | undefined> {
-        // TODO: cache factory
+        // TODO: cache factory?
         var f = await ethers.getContractAt('@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol:IUniswapV2Factory', dex.factory)
         var pairAddress = await f.getPair(token0.address, token1.address)
         if (pairAddress === '0x0000000000000000000000000000000000000000') return
@@ -127,7 +142,6 @@ export class PairFactory {
         return new UniswapPair(dex, token0, token1, c)
     }
 
-    // TODO: support no pool
     async makeBalancerPool(dex: Balancer, token0: Token, token1: Token): Promise<BalancerPair | undefined> {
         const poolId = getPoolId(token0.address, token1.address)
         if (!poolId) return

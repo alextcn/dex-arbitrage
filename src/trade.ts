@@ -1,5 +1,5 @@
 import { BigNumber } from "ethers"
-import { BN, fromBN, toBN } from "./utils/bn"
+import { addDecimals, BN, fromBN, subDecimals, toBN } from "./utils/bn"
 import { bmath } from "@balancer-labs/sor"
 import { BalancerPair, UniswapPair } from "./pair"
 
@@ -14,16 +14,28 @@ export interface Trade {
 // Returns profit of flashswap between Uniswap and Balancer.
 export function flashswapProfitUniToBalancer(pairUni: UniswapPair, pairBal: BalancerPair, amountBorrow: BigNumber, isFirstToken: boolean): BigNumber {
     if (!pairUni.hasValue() || !pairBal.hasValue()) throw 'Pairs must have balances'
-
+    if (pairUni.token0.address != pairBal.token0.address ||
+        pairUni.token1.address != pairBal.token1.address) throw 'Pairs have different tokens'
+    
+    // bmath assumes all values has 18 decimals
+    const d0 = 18 - pairUni.token0.decimals
+    const d1 = 18 - pairUni.token1.decimals
+    const uniBalance0 = d0 > 0 ? addDecimals(pairUni.balance0!, d0) : pairUni.balance0!
+    const uniBalance1 = d1 > 0 ? addDecimals(pairUni.balance1!, d1) : pairUni.balance1!
+    const balBalance0 = d0 > 0 ? addDecimals(pairBal.balance0!, d0) : pairBal.balance0!
+    const balBalance1 = d1 > 0 ? addDecimals(pairBal.balance1!, d1) : pairBal.balance1!
+    const borrow = addDecimals(amountBorrow, isFirstToken ? d0 : d1)
+    
     if (isFirstToken) {
-        const amountToReturn = getAmountInUni(amountBorrow, pairUni.balance1!, pairUni.balance0!)
-        const amountToSwap = bmath.calcInGivenOut(toBN(pairBal.balance0!), toBN(pairBal.weight0), toBN(pairBal.balance1!), toBN(pairBal.weight1), toBN(amountToReturn), toBN(pairBal.fee)) 
-        return amountBorrow.sub(fromBN(amountToSwap))
+        const amountToReturn = getAmountInUni(borrow, uniBalance1, uniBalance0)
+        const amountToSwap = bmath.calcInGivenOut(toBN(balBalance0), toBN(pairBal.weight0), toBN(balBalance1), toBN(pairBal.weight1), toBN(amountToReturn), toBN(pairBal.fee)) 
+        const profit = borrow.sub(fromBN(amountToSwap))
+        return subDecimals(profit, isFirstToken ? d0 : d1)
     } else {
-        const amountToReturn = getAmountInUni(amountBorrow, pairUni.balance0!, pairUni.balance1!)
-        // TODO: toBN with decimals!
-        const amountToSwap = bmath.calcInGivenOut(toBN(pairBal.balance1!), toBN(pairBal.weight1), toBN(pairBal.balance0!), toBN(pairBal.weight0), toBN(amountToReturn), toBN(pairBal.fee)) 
-        return amountBorrow.sub(fromBN(amountToSwap))
+        const amountToReturn = getAmountInUni(borrow, uniBalance0, uniBalance1)
+        const amountToSwap = bmath.calcInGivenOut(toBN(balBalance1), toBN(pairBal.weight1), toBN(balBalance0), toBN(pairBal.weight0), toBN(amountToReturn), toBN(pairBal.fee)) 
+        const profit = borrow.sub(fromBN(amountToSwap))
+        return subDecimals(profit, isFirstToken ? d0 : d1)
     }
 }
 
@@ -32,6 +44,8 @@ export function flashswapProfitUniToBalancer(pairUni: UniswapPair, pairBal: Bala
 // Actual profit could be different due to frontrunning.
 export function flashswapProfitUniToUni(pair0: UniswapPair, pair1: UniswapPair, amountBorrow: BigNumber, isFirstToken: boolean): BigNumber {
     if (!pair0.hasValue() || !pair1.hasValue()) throw 'Pairs must have balances'
+    if (pair0.token0.address != pair1.token0.address ||
+        pair0.token1.address != pair1.token1.address) throw 'Pairs have different tokens'
 
     if (isFirstToken) {
         const amountRequiredB = getAmountInUni(amountBorrow, pair0.balance1!, pair0.balance0!)
@@ -53,8 +67,7 @@ export function flashswapProfitUniToUni(pair0: UniswapPair, pair1: UniswapPair, 
 export function tradeSizeUniToUni(pair0: UniswapPair, pair1: UniswapPair) {
     if (!pair0.hasValue() || !pair1.hasValue()) throw 'Pairs must have balances'
 
-    const precision = 18
-    const d = BigNumber.from('10').pow(precision)
+    const d = BigNumber.from('10').pow(18)
 
     // price0/price1
     const priceDiff = d.mul(pair0.balance0!).mul(pair1.balance1!).div(pair0.balance1!).div(pair1.balance0!).sub(d)

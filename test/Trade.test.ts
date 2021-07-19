@@ -5,76 +5,87 @@ import { flashswapProfitUniToUni, flashswapProfitUniToBalancer } from '../src/tr
 import { BN, fromBN, toBN } from "../src/utils/bn"
 import { bmath } from "@balancer-labs/sor"
 import { uniPrice } from '../src/utils/dex'
-import { BalancerPool, UniswapPair } from '../src/pair'
+import { DEX, Uniswap, Balancer } from '../src/dex'
+import { BalancerPair, UniswapPair } from '../src/pair'
+import cfg from '../config.json'
+import { Token } from "../src/token"
+import { BalancerPoolContract, UniswapPairContract } from "../src/contracts"
+import { logPair } from "../src/utils/app"
 
 
-describe("Trade", function() {
-    const uniPair0: UniswapPair = {
-        balance0: BigNumber.from('166527132537660000000000000'),
-        balance1: BigNumber.from('71672677442879327142582'),
-    }
-    const uniPair1: UniswapPair = {
-        balance0: BigNumber.from('32785426507532000000000000'),
-        balance1: BigNumber.from('14534535488575865428516'),
-    }
-    const balPool: BalancerPool = {
-        balance0: new BN('32353316570431271588389494'), // dai
-        balance1: new BN('21514991285824735138779'), // weth
-        weight0: new BN(40).multipliedBy(new BN(10).pow(16)), // 40%
-        weight1: new BN(60).multipliedBy(new BN(10).pow(16)), // 60%
-        fee: new BN(2900000000000000) // 0.29%
-    }
+const uniswap: Uniswap = {
+    name: 'Uniswap',
+    protocol: 'UniswapV2',
+    factory: cfg.uni.factory,
+    router: cfg.uni.router
+}
+const balancer: Balancer = {
+    name: 'Balancer',
+    protocol: 'BalancerV2',
+    vault: cfg.balancer.vault
+}
+
+const WETH = new Token('0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', 'Wrapped Ether', 'WETH', 18)
+const USDC = new Token('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', 'USD Coin', 'USDC', 6)
+
+
+describe("Trade USDC/WETH", function() {
+    const uniPair0 = new UniswapPair(uniswap, USDC, WETH, {} as UniswapPairContract)
+    uniPair0.updateReserves(BigNumber.from('166527132537660'), BigNumber.from('71672677442879327142582'), 1)
+
+    const uniPair1 = new UniswapPair(uniswap, USDC, WETH, {} as UniswapPairContract)
+    uniPair1.updateReserves(BigNumber.from('32785426507532'), BigNumber.from('14534535488575865428516'), 1)
+
+
+    const w0 = BigNumber.from('400000000000000000') // 40%
+    const w1 = BigNumber.from('600000000000000000') // 60%
+    const fee = BigNumber.from('2900000000000000') // 0.29%
+    const balPool = new BalancerPair(balancer, USDC, WETH, '0x0b09dea16768f0799065c475be02919503cb2a3500020000000000000000001a', w0, w1, fee, {} as BalancerPoolContract)    
+    balPool.updateReserves(BigNumber.from('32353316570431'), BigNumber.from('21514991285824735138779'), 1)
     
-    const amountBorrowDAI = BigNumber.from('200000000000000000000000') // 200,000 DAI
+    const amountBorrowUSDC = BigNumber.from('200000000000') // 200,000 USDC
     const amountBorrowWETH = BigNumber.from('500000000000000000000') // 500 WETH
-
-
-    const uni0EthPrice = uniPrice(uniPair0, false)
-    console.log(`Uniswap0: 1 WETH = ${ethers.utils.formatUnits(uni0EthPrice)} DAI`)
-    const uni1EthPrice = uniPrice(uniPair1, false)
-    console.log(`Uniswap1: 1 WETH = ${ethers.utils.formatUnits(uni1EthPrice)} DAI`)
-    const balEthPrice = bmath.calcSpotPrice(balPool.balance0, balPool.weight0, balPool.balance1, balPool.weight1, new BN(0))
-    console.log(`Balancer: 1 WETH = ${ethers.utils.formatUnits(fromBN(balEthPrice))} DAI`)
     
+    logPair(uniPair0)
+    logPair(uniPair1)
+    logPair(balPool)
 
-    it('uni->uni dai profit', async function () {
-        const profit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrowDAI, true)
-        expect(profit).to.equals(BigNumber.from('3256449224456700521210'))
+    it('uni->uni usdc profit', async function () {
+        const profit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrowUSDC, true)
+        expect(profit).to.equals(BigNumber.from('3256449224'))
     })
 
-    it('uni->bal dai profit', async function() {
-        const profit = flashswapProfitUniToBalancer(uniPair0, balPool, amountBorrowDAI, true)
-        expect(profit).to.equals(BigNumber.from('3464315467513211751915'))
+    it('uni->bal usdc profit', async function() {
+        const profit = flashswapProfitUniToBalancer(uniPair0, balPool, amountBorrowUSDC, true)
+        expect(profit).to.equals(BigNumber.from('3464315467'))
     })
 
     it('profit same', async function () {
-        const balCopyPool: BalancerPool = {
-            balance0: toBN(uniPair1.balance0), // dai
-            balance1: toBN(uniPair1.balance1), // weth
-            weight0: new BN(50).multipliedBy(new BN(10).pow(16)), // 50%
-            weight1: new BN(50).multipliedBy(new BN(10).pow(16)), // 50%
-            fee: new BN(3000000000000000) // 0.30%
-        }
+        const balCopyPool = new BalancerPair(balancer, uniPair1.token0, uniPair1.token1, 'ZERO_ID',
+            BigNumber.from('500000000000000000'), BigNumber.from('500000000000000000'), 
+            BigNumber.from('3000000000000000'), {} as BalancerPoolContract
+        )
+        balCopyPool.updateReserves(uniPair1.balance0!, uniPair1.balance1!, 1)
 
-        const uniToUniDAIProfit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrowDAI, true)
-        const uniToBalDAIProfit = flashswapProfitUniToBalancer(uniPair0, balCopyPool, amountBorrowDAI, true)
+        const uniToUniUSDCProfit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrowUSDC, true)
+        const uniToBalUSDCProfit = flashswapProfitUniToBalancer(uniPair0, balCopyPool, amountBorrowUSDC, true)
 
         const uniToUniWETHProfit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrowWETH, false)
         const uniToBalWETHProfit = flashswapProfitUniToBalancer(uniPair0, balCopyPool, amountBorrowWETH, false)
         
         // two big number libs have different roundings
-        const precision = 10
+        const precision = 9
         const d = BigNumber.from(10).pow(18-precision)
-        expect(uniToUniDAIProfit.div(d)).to.equals(uniToBalDAIProfit.div(d))
+        expect(uniToUniUSDCProfit.div(d)).to.equals(uniToBalUSDCProfit.div(d))
         expect(uniToUniWETHProfit.div(d)).to.equals(uniToBalWETHProfit.div(d))
     })
 
     it('uni to uni weth profit', async function () {
         const profit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrowWETH, false)
-        expect(profit).to.equals(BigNumber.from('41128271134587974309').mul(-1))
+        expect(profit).to.equals(BigNumber.from('41128271134620992026').mul(-1))
     })
     it('uni to bal weth profit', async function () {
         const profit = flashswapProfitUniToBalancer(uniPair0, balPool, amountBorrowWETH, false)
-        expect(profit).to.equals(BigNumber.from('38015905378376938659').mul(-1))
+        expect(profit).to.equals(BigNumber.from('38015905378381599413').mul(-1))
     })
 })

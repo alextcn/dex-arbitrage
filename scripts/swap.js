@@ -1,7 +1,7 @@
 
 const cfg = require("../config.json")
-const { printPairPrice } = require("./uni-utils")
-const { runScript, logBalance } = require("./utils")
+const { printPairPrice } = require("../src/utils/uni")
+const { runScript, logBalance } = require("../src/utils/utils")
 
 const factoryAddress = cfg.uni.factory
 const routerAddress = cfg.uni.router
