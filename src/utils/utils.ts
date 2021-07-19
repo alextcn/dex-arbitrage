@@ -1,3 +1,4 @@
+import { BigNumber } from "ethers"
 import { ethers } from "hardhat"
 import { Token } from "../token"
 
@@ -40,6 +41,13 @@ export async function logBalance(address: string, ...tokens: string[]) {
         const balance = await token.balanceOf(address)
         console.log(`--- ${symbol}: ${ethers.utils.formatUnits(balance, decimals)}`)
     }
+}
+
+export function logMinProfits(tokens: Map<string, Token>, minProfits: Map<string, BigNumber>) {
+    minProfits.forEach((profit, tokenAddress) => {
+        const token = tokens.get(tokenAddress)
+        console.log(`min profit of ${token?.symbol}: ${token?.format(profit, true)}`)
+    })
 }
 
 export function addressEquals(address1: string, address2: string): boolean {

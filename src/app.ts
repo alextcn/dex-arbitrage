@@ -1,13 +1,34 @@
-import { Balancer, DEX, Uniswap } from "./dex"
-import { objectsToTokens, runApp } from "./utils/utils"
+import { Balancer, Uniswap } from "./dex"
+import { logMinProfits, objectsToTokens, runApp } from "./utils/utils"
 import cfg from '../config.json'
 import tokenList from '../tokens.json'
 import { ethers } from "hardhat"
 import { buildRoute, Route } from "./route"
 import { BalancerPair, Pair, PairFactory, UniswapPair } from "./pair"
-import { BalancerVaultContract, UniswapPairContract } from "./contracts"
+import { BalancerVaultContract } from "./contracts"
 import * as abi from "../abi/balancer"
 import { logPair, logTrade } from "./utils/app"
+import { BigNumber } from "ethers"
+
+
+
+// ~ $5
+const minProfits = new Map<string, BigNumber>()
+minProfits.set(cfg.WETH,      BigNumber.from('0002777778000000000'))
+minProfits.set(cfg.WBTC,      BigNumber.from('000016129')) // 8
+minProfits.set(cfg.USDT,      BigNumber.from('5000000')) // 6
+minProfits.set(cfg.USDC,      BigNumber.from('5000000')) // 6
+minProfits.set(cfg.DAI,       BigNumber.from('5000000000000000000'))
+minProfits.set(cfg.TOMOE,     BigNumber.from('2000000000000000000'))
+minProfits.set(cfg.BAL,       BigNumber.from('0300000000000000000'))
+minProfits.set(cfg.SUSHI,     BigNumber.from('0750000000000000000'))
+minProfits.set(cfg.SHIB, BigNumber.from('800000000000000000000000'))
+minProfits.set(cfg.COMP,      BigNumber.from('0014623731000000000'))
+minProfits.set(cfg.LINK,      BigNumber.from('0341296928000000000'))
+minProfits.set(cfg.UNI,       BigNumber.from('0316856781000000000'))
+minProfits.set(cfg.SAND,     BigNumber.from('11363636364000000000'))
+minProfits.set(cfg.CRV,       BigNumber.from('3715814507000000000'))
+minProfits.set(cfg.SNX,       BigNumber.from('0608272506000000000'))
 
 
 // TODO: read from config
@@ -40,7 +61,7 @@ const routeAddresses: string[][] = [
 
     [cfg.FNK, cfg.USDT],
     [cfg.FEI, cfg.WETH],
-    // [cfg.SHIB, cfg.WETH],
+    [cfg.SHIB, cfg.WETH],
     [cfg.SAND, cfg.WETH],
     [cfg.AAVE, cfg.WETH],
     [cfg.SNX, cfg.WETH],
@@ -87,6 +108,8 @@ async function initPairsAndRoutes(): Promise<[Map<string, Pair>, Route[]]> {
     const tokens = objectsToTokens(Object.values(tokenList))
     const pairs: Map<string, Pair> = new Map()
     const routes: Route[] = []
+
+    // logMinProfits(tokens, minProfits)
     
     const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault) as BalancerVaultContract
     const pairFactory = new PairFactory(vault)
@@ -153,7 +176,11 @@ async function main() {
             const trade = route.calculateTrade()
             return { route: route, trade: trade }
         })
-        .filter((x) => x.trade.profit.gt(0))
+        .filter((x) => {
+            const token = x.trade.firstToken ? x.route.token0 : x.route.token1
+            const minProfit = minProfits.get(token.address)
+            return x.trade.profit.gt(!!minProfit ? minProfit : 0)
+        })
 
         // log profitable trades
         trades.forEach((x) => {
