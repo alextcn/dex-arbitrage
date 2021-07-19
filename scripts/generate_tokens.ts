@@ -35,9 +35,12 @@ function readAddresses(filePath: string): string[] {
 }
 
 async function buildToken(hre: HardhatRuntimeEnvironment, address: string): Promise<Token> {
+    console.log(`buildToken: address = ${address}`)
     // TODO: use custom abi
     const token = await hre.ethers.getContractAt('@uniswap/v2-periphery/contracts/interfaces/IERC20.sol:IERC20', address)
+    console.log(`token`)
     const name = (await token.name()) as string
+    console.log(`name`)
     const symbol = (await token.symbol()) as string
     const decimals = (await token.decimals()) as number
     return new Token(address, name, symbol, decimals)

@@ -16,22 +16,35 @@ const routeAddresses: string[][] = [
     [cfg.WETH, cfg.USDT],
     [cfg.WETH, cfg.USDC],
     [cfg.WETH, cfg.DAI],
-    // [cfg.WETH, cfg.WBTC],
-    // // WBTC
-    // // [cfg.WBTC, cfg.USDT], // empty pool on sushi
-    // // [cfg.WBTC, cfg.USDC], // no pair on sushi
-    // // [cfg.WBTC, cfg.DAI], // no pair on sushi
-    // // other
-    // // [cfg.FNK, cfg.USDT], // no pair on sushi
-    // // [cfg.FEI, cfg.WETH], // no pair on sushi    
+    [cfg.WETH, cfg.WBTC],
+    // WBTC
+    [cfg.WBTC, cfg.USDT],
+    [cfg.WBTC, cfg.USDC],
+    [cfg.WBTC, cfg.DAI],
+    // TOMOE
+    [cfg.TOMOE, cfg.WETH],
+    [cfg.TOMOE, cfg.USDT],
+    [cfg.TOMOE, cfg.USDC],
+    // other
+    [cfg.BAL, cfg.WETH],
+    [cfg.PAR, cfg.USDC],
+    [cfg.PAR, cfg.WETH],
+    [cfg.LINK, cfg.WETH],
+    [cfg.COMP, cfg.WETH],
+    [cfg.UNI, cfg.WETH],
+    [cfg.REN, cfg.WETH],
+    [cfg.MATIC, cfg.WETH],
+    [cfg.GTC, cfg.WETH],
+    [cfg.BAT, cfg.WETH],
+    [cfg.SUSHI, cfg.WETH],
+
+    [cfg.FNK, cfg.USDT],
+    [cfg.FEI, cfg.WETH],
     // [cfg.SHIB, cfg.WETH],
-    // [cfg.UNI, cfg.WETH],
-    // // [cfg.SAND, cfg.WETH], // no pair on sushi
-    // [cfg.AAVE, cfg.WETH],
-    // [cfg.LINK, cfg.WETH],
-    // [cfg.SNX, cfg.WETH],
-    // [cfg.CRV, cfg.WETH],
-    // [cfg.COMP, cfg.WETH]
+    [cfg.SAND, cfg.WETH],
+    [cfg.AAVE, cfg.WETH],
+    [cfg.SNX, cfg.WETH],
+    [cfg.CRV, cfg.WETH],
 ]
 
 
@@ -47,16 +60,26 @@ const sushiswap: Uniswap = {
     factory: cfg.sushi.factory,
     router: cfg.sushi.router
 }
+const lua: Uniswap = {
+    name: 'LuaSwap',
+    protocol: 'UniswapV2',
+    factory: cfg.lua.factory,
+    router: cfg.lua.router
+}
 const balancer: Balancer = {
     name: 'Balancer',
     protocol: 'BalancerV2',
     vault: cfg.balancer.vault
 }
 
+
 const exchanges = [
     [uniswap, sushiswap],
     [uniswap, balancer],
-    [sushiswap, balancer]
+    [sushiswap, balancer],
+    [lua, uniswap],
+    [lua, sushiswap],
+    [lua, balancer]
 ]
 
 
@@ -122,7 +145,7 @@ async function main() {
                 const [, [balance0, balance1], lastChangeBlock] = await vault.getPoolTokens(pair.poolId)
                 pair.updateReserves(balance0, balance1, blockNumber)
             }
-            logPair(pair)
+            // logPair(pair)
         }))
 
         // check routes for profitable trades
@@ -133,7 +156,12 @@ async function main() {
         .filter((x) => x.trade.profit.gt(0))
 
         // log profitable trades
-        trades.forEach((x) => logTrade(blockNumber, x.route, x.trade))
+        trades.forEach((x) => {
+            logTrade(blockNumber, x.route, x.trade)
+            logPair(x.route.pairFrom, undefined, '                       ')
+            logPair(x.route.pairTo, undefined, '                       ')
+            console.log('————————————————————————')
+        })
 
         // execute flashswap
     })
