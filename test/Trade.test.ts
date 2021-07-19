@@ -1,7 +1,7 @@
 import { expect } from "chai"
 import { ethers } from "hardhat"
 import { BigNumber } from "ethers"
-import { flashswapProfitUniToUni, flashswapProfitUniToBalancer } from '../src/trade'
+import { flashswapProfitUniToUni, flashswapProfitUniToBalancer, tradeSizeUniToUni, tradeSizeUniToBalancer } from '../src/trade'
 import { BN, fromBN, toBN } from "../src/utils/bn"
 import { bmath } from "@balancer-labs/sor"
 import { uniPrice } from '../src/utils/dex'
@@ -78,6 +78,11 @@ describe("Trade USDC/WETH", function() {
         const d = BigNumber.from(10).pow(18-precision)
         expect(uniToUniUSDCProfit.div(d)).to.equals(uniToBalUSDCProfit.div(d))
         expect(uniToUniWETHProfit.div(d)).to.equals(uniToBalWETHProfit.div(d))
+
+        
+        // const trade = tradeSizeUniToBalancer(uniPair0, balCopyPool)
+        // const fmt: (x: BigNumber) => string = (x: BigNumber) => (trade.firstToken ? uniPair0.token0 : uniPair1.token1).format(x, true)
+        // console.log(`trade size: borrow = ${fmt(trade.amountBorrow)}, profit = ${fmt(trade.profit)}`)
     })
 
     it('uni to uni weth profit', async function () {
@@ -87,5 +92,34 @@ describe("Trade USDC/WETH", function() {
     it('uni to bal weth profit', async function () {
         const profit = flashswapProfitUniToBalancer(uniPair0, balPool, amountBorrowWETH, false)
         expect(profit).to.equals(BigNumber.from('38015905378381599413').mul(-1))
+    })
+
+    xit('trade size', async function () {
+        // const isFirstToken = tradeSizeUniToUni(uniPair0, uniPair1).firstToken
+
+        // const fmt: (x: BigNumber) => string = function(x: BigNumber) {
+        //     return (isFirstToken ? uniPair0.token0 : uniPair1.token1).format(x, true)
+        // }
+        
+        // // todo: binary search
+
+        // // find optimal profit
+        // const INIT_VALUE = BigNumber.from(1000000)
+        // const MULTIPLIER = 2
+
+        // var maxProfit = BigNumber.from(0)
+        // const poolSize = isFirstToken ? uniPair0.balance0! : uniPair1.balance1! // TODO: take smaller pool size
+        // for (var amountBorrow = INIT_VALUE; amountBorrow.lt(poolSize); amountBorrow = amountBorrow.mul(MULTIPLIER)) {
+        //     const newProfit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrow, isFirstToken)
+        //     if (newProfit.gt(maxProfit)) {
+        //         console.log(`borrow = ${fmt(amountBorrow)}, profit = ${fmt(newProfit)}`)
+        //         maxProfit = newProfit
+        //     } else break
+        // }
+        
+        // // log
+        // console.log(`pool size: ${fmt(poolSize)}`)
+        // const smartTrade = tradeSizeUniToUni(uniPair0, uniPair1)
+        // console.log(`smart trade: borrow = ${fmt(smartTrade.amountBorrow)}, profit = ${fmt(flashswapProfitUniToUni(uniPair0, uniPair1, smartTrade.amountBorrow, smartTrade.firstToken))}`)
     })
 })

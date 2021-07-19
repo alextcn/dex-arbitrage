@@ -1,4 +1,4 @@
-import { BigNumber } from "ethers"
+import { BigNumber, BigNumberish } from "ethers"
 import { addDecimals, BN, fromBN, subDecimals, toBN } from "./utils/bn"
 import { bmath } from "@balancer-labs/sor"
 import { BalancerPair, UniswapPair } from "./pair"
@@ -10,7 +10,7 @@ export interface Trade {
 }
 
 
-// TODO: add decimals up to 18 for toBN
+// TODO: improve conversion between BN and BigNumber to improve precision
 // Returns profit of flashswap between Uniswap and Balancer.
 export function flashswapProfitUniToBalancer(pairUni: UniswapPair, pairBal: BalancerPair, amountBorrow: BigNumber, isFirstToken: boolean): BigNumber {
     if (!pairUni.hasValue() || !pairBal.hasValue()) throw 'Pairs must have balances'
@@ -67,21 +67,21 @@ export function flashswapProfitUniToUni(pair0: UniswapPair, pair1: UniswapPair, 
 export function tradeSizeUniToUni(pair0: UniswapPair, pair1: UniswapPair) {
     if (!pair0.hasValue() || !pair1.hasValue()) throw 'Pairs must have balances'
 
-    const d = BigNumber.from('10').pow(18)
+    const ONE = BigNumber.from('10').pow(18)
 
     // price0/price1
-    const priceDiff = d.mul(pair0.balance0!).mul(pair1.balance1!).div(pair0.balance1!).div(pair1.balance0!).sub(d)
+    const priceDiff = ONE.mul(pair0.balance0!).mul(pair1.balance1!).div(pair0.balance1!).div(pair1.balance0!).sub(ONE)
 
     var amountBorrowA
     var amountBorrowB
     
     // calc based on half of price impact of less liquid market
     if (pair0.balance0!.mul(pair0.balance1!).lt(pair1.balance0!.mul(pair1.balance1!))) {
-        amountBorrowA = priceDiff.gte(0) ? pair0.balance0!.mul(priceDiff).div(2).div(d).div(2) : undefined
-        amountBorrowB = priceDiff.gte(0) ? undefined : pair0.balance1!.mul(-1).mul(priceDiff).div(2).div(d).div(2)
+        amountBorrowA = priceDiff.gte(0) ? pair0.balance0!.mul(priceDiff).div(2).div(ONE).div(2) : undefined
+        amountBorrowB = priceDiff.gte(0) ? undefined : pair0.balance1!.mul(-1).mul(priceDiff).div(2).div(ONE).div(2)
     } else {
-        amountBorrowA = priceDiff.gte(0) ? pair1.balance0!.mul(priceDiff).div(2).div(d).div(2) : undefined
-        amountBorrowB = priceDiff.gte(0) ? undefined : pair1.balance1!.mul(-1).mul(priceDiff).div(2).div(d).div(2)
+        amountBorrowA = priceDiff.gte(0) ? pair1.balance0!.mul(priceDiff).div(2).div(ONE).div(2) : undefined
+        amountBorrowB = priceDiff.gte(0) ? undefined : pair1.balance1!.mul(-1).mul(priceDiff).div(2).div(ONE).div(2)
     }
     
     // check max borrow reserves
@@ -92,18 +92,43 @@ export function tradeSizeUniToUni(pair0: UniswapPair, pair1: UniswapPair) {
         amountBorrowB = pair0.balance1
     }
 
-    return {
-        amountBorrow: amountBorrowA ? amountBorrowA : amountBorrowB!,
-        firstToken: !!amountBorrowA
-    }
+    const amountBorrow = amountBorrowA ? amountBorrowA : amountBorrowB!
+    const firstToken = !!amountBorrowA
+    const profit = flashswapProfitUniToUni(pair0, pair1, amountBorrow, firstToken)
+    return { amountBorrow: amountBorrow, firstToken: firstToken, profit: profit }
 }
 
 export function tradeSizeUniToBalancer(pairUni: UniswapPair, pairBal: BalancerPair) {
-    // TODO: implement
-    return {
-        amountBorrow: BigNumber.from(0),
-        firstToken: Boolean(true)
+    if (!pairUni.hasValue() || !pairBal.hasValue()) throw 'Pairs must have balances'
+    if (pairUni.token0.address != pairBal.token0.address ||
+        pairUni.token1.address != pairBal.token1.address) throw 'Pairs have different tokens'
+
+    // // logging
+    // const fmt: (x: BigNumber) => string = (x: BigNumber) => (isFirstToken ? pairUni.token0 : pairUni.token1).format(x, true)
+    
+    const INIT_VALUE = BigNumber.from(10).pow(9)
+    const MULTIPLIER = 2
+
+    // borrow underpriced token
+    const isFirstToken = pairUni.price0()!.lte(pairBal.price0()!)
+    // take smaller pool as max borrow value
+    const poolSize = isFirstToken ? min(pairUni.balance0!, pairBal.balance0!) : min(pairUni.balance1!, pairBal.balance1!)
+
+    // iterate
+    let maxProfit = BigNumber.from(0)
+    for (var amountBorrow = INIT_VALUE; amountBorrow.lt(poolSize); amountBorrow = amountBorrow.mul(MULTIPLIER)) {
+        const newProfit = flashswapProfitUniToBalancer(pairUni, pairBal, amountBorrow, isFirstToken)
+        if (newProfit.gt(maxProfit)) {
+            // console.log(`borrow = ${fmt(amountBorrow)}, profit = ${fmt(newProfit)}`)
+            maxProfit = newProfit
+        } else break
     }
+
+    return { amountBorrow: amountBorrow, profit: maxProfit, firstToken: isFirstToken }
+}
+
+function min(x: BigNumber, y: BigNumber): BigNumber {
+    return x.lte(y) ? x : y
 }
 
 // Returns a required input amount of the other asset, 

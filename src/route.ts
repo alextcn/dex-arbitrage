@@ -39,13 +39,7 @@ export class UniToUniRoute extends Route {
     }
 
     calculateTrade(): Trade {
-        const trade = tradeSizeUniToUni(this.pairFrom, this.pairTo)
-        const profit = flashswapProfitUniToUni(this.pairFrom, this.pairTo, trade.amountBorrow, trade.firstToken)
-        return {
-            amountBorrow: trade.amountBorrow,
-            firstToken: trade.firstToken,
-            profit: profit
-        }
+        return tradeSizeUniToUni(this.pairFrom, this.pairTo)
     }
 
 }
@@ -62,13 +56,7 @@ export class UniToBalRoute extends Route {
     }
 
     calculateTrade() : Trade {
-        const trade = tradeSizeUniToBalancer(this.pairFrom, this.pairTo)
-        const profit = flashswapProfitUniToBalancer(this.pairFrom, this.pairTo, trade.amountBorrow, trade.firstToken)
-        return {
-            amountBorrow: trade.amountBorrow,
-            firstToken: trade.firstToken,
-            profit: profit
-        }
+        return  tradeSizeUniToBalancer(this.pairFrom, this.pairTo)
     }
 }
 
