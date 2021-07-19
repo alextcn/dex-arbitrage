@@ -29,6 +29,12 @@ minProfits.set(cfg.UNI,       BigNumber.from('0316856781000000000'))
 minProfits.set(cfg.SAND,     BigNumber.from('11363636364000000000'))
 minProfits.set(cfg.CRV,       BigNumber.from('3715814507000000000'))
 minProfits.set(cfg.SNX,       BigNumber.from('0608272506000000000'))
+minProfits.set(cfg.MATIC,     BigNumber.from('6756756757000000000'))
+minProfits.set(cfg.GTC,       BigNumber.from('1000000000000000000'))
+minProfits.set(cfg.BAT,      BigNumber.from('10000000000000000000'))
+minProfits.set(cfg.FNK,       BigNumber.from('9259259259000000000'))
+minProfits.set(cfg.FEI,       BigNumber.from('1000000000000000000'))
+minProfits.set(cfg.AAVE,      BigNumber.from('0020876827000000000'))
 
 
 // TODO: read from config
@@ -53,7 +59,6 @@ const routeAddresses: string[][] = [
     [cfg.LINK, cfg.WETH],
     [cfg.COMP, cfg.WETH],
     [cfg.UNI, cfg.WETH],
-    [cfg.REN, cfg.WETH],
     [cfg.MATIC, cfg.WETH],
     [cfg.GTC, cfg.WETH],
     [cfg.BAT, cfg.WETH],
