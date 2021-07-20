@@ -35,6 +35,7 @@ minProfits.set(cfg.BAT,      BigNumber.from('10000000000000000000'))
 minProfits.set(cfg.FNK,       BigNumber.from('9259259259000000000'))
 minProfits.set(cfg.FEI,       BigNumber.from('1000000000000000000'))
 minProfits.set(cfg.AAVE,      BigNumber.from('0020876827000000000'))
+minProfits.set(cfg.PAR,       BigNumber.from('4000000000000000000'))
 
 
 // TODO: read from config
