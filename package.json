@@ -1,9 +1,11 @@
 {
-  "name": "box",
+  "name": "dex-abitrage",
   "version": "1.0.0",
   "description": "",
   "main": "./scripts/run.js",
   "scripts": {
+    "start": "npx hardhat --network main run src/app.ts",
+    "pm2start": "pm2 start --time -l pmlog.txt --name \"bot\" npm -- run start",
     "test": "npx hardhat test"
   },
   "author": "Alex Tkachenko",
