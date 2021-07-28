@@ -1,7 +1,19 @@
-### DEX arbitrage bot
-Arbitrage bot that tracks price difference between Uniswap and Sushiswap and make a flashswap to balance prices.
+## DEX arbitrage bot
+The DEX arbitrage bot tracks price difference between DEX exchanges and calculates optimal trade size and profit.
 
-### Install
+#### Supported DEXs
+- Uniswap V2
+- Balancer V2
+- Uniswap V3 (soon)
+
+You can search for arbitrage opportunities across any pair of supported DEXs, such as Uniswap V2 & Sushiswap, Uniswap V2 & Balancer V2, Sushiswap & Balancer V2, etc.
+
+#### Features
+- Multiple exchanges, routes, and tokens
+- Minimum trade profit
+- Finds optimal trade size (binary search – soon)
+
+## Install
 
 #### 1. Install Hardhat  
 <code>npm install --save-dev hardhat</code>  
