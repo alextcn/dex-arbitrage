@@ -5,7 +5,7 @@ import cfg from '../config.json'
 import { BigNumber } from "ethers"
 import { bmath } from "@balancer-labs/sor"
 import { fromBN, toBN } from "../src/utils/bn"
-import * as abi from "../abi/balancer"
+import abi from "../abi.json"
 
 const valutAddress = '0xBA12222222228d8Ba445958a75a0704d566BF2C8'
 const poolID = '0x0b09dea16768f0799065c475be02919503cb2a3500020000000000000000001a' // 60WETH-40DAI
@@ -13,7 +13,7 @@ const poolID = '0x0b09dea16768f0799065c475be02919503cb2a350002000000000000000000
 
 
 runScript(async function () {
-    const vault = await ethers.getContractAt(abi.vault, valutAddress)
+    const vault = await ethers.getContractAt(abi.balancer.vault, valutAddress)
 
     const [poolAddress] = await vault.getPool(poolID)
     console.log(`vault.getPool: poolAddress = ${poolAddress}`)
@@ -23,7 +23,7 @@ runScript(async function () {
     const [daiBalance, wethBalance] = result[1] as BigNumber[]
     console.log(`vault.getPoolTokens: tokens = [${dai}, ${weth}], balances = [${ethers.utils.formatUnits(daiBalance, 18)}, ${ethers.utils.formatUnits(wethBalance, 18)}]`)
 
-    const pool = await ethers.getContractAt(abi.pool, poolAddress)
+    const pool = await ethers.getContractAt(abi.balancer.pool, poolAddress)
 
     const poolName = await pool.name()
     const [daiWeight, wethWeight] = (await pool.getNormalizedWeights()) as BigNumber[] // 18 decimals: [0.6, 0.4]

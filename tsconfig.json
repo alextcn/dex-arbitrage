@@ -79,7 +79,9 @@
   "files": [
     "./hardhat.config.ts",
     "./config.json",
-    "./tokens.json"
+    "./tokens.json",
+    "./pool-data.json",
+    "./abi.json"
   ],
   "exclude": [
     "./build",

@@ -1,7 +1,7 @@
 
 import { ethers } from "hardhat"
 import { Contract } from "ethers"
-import * as abi from "../../abi/balancer"
+import abi from "../../abi.json"
 import cfg from '../../config.json'
 
 // TODO: make singleton vault
@@ -30,9 +30,9 @@ export function getPoolId(token0: string, token1: string): string | undefined {
 }
 
 export async function getPoolContract(poolId: string): Promise<Contract> {
-    const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault)
+    const vault = await ethers.getContractAt(abi.balancer.vault, cfg.balancer.vault)
     const [poolAddress] = await vault.getPool(poolId)
-    return ethers.getContractAt(abi.pool, poolAddress)
+    return ethers.getContractAt(abi.balancer.pool, poolAddress)
 }
 
 

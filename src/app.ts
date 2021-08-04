@@ -1,12 +1,12 @@
-import { Balancer, Uniswap } from "./dex"
+import { Balancer, Uniswap, UniswapV3 } from "./dex"
 import { logMinProfits, objectsToTokens, runApp } from "./utils/utils"
 import cfg from '../config.json'
 import tokenList from '../tokens.json'
 import { ethers } from "hardhat"
 import { buildRoute, Route } from "./route"
-import { BalancerPair, Pair, PairFactory, UniswapPair } from "./pair"
+import { BalancerPair, Pair, PairFactory, UniswapPair, UniswapV3Pool } from "./pair"
 import { BalancerVaultContract } from "./contracts"
-import * as abi from "../abi/balancer"
+import abi from '../abi.json'
 import { logPair, logTrade } from "./utils/app"
 import { BigNumber } from "ethers"
 
@@ -98,6 +98,12 @@ const balancer: Balancer = {
     protocol: 'BalancerV2',
     vault: cfg.balancer.vault
 }
+const uniswapV3: UniswapV3 = {
+    name: 'Uniswap V3',
+    protocol: 'UniswapV3',
+    factory: cfg.uniV3.factory,
+    fee: 3000 // only scan for 0.3%-fee pools atm
+}
 
 
 const exchanges = [
@@ -106,7 +112,12 @@ const exchanges = [
     [sushiswap, balancer],
     [lua, uniswap],
     [lua, sushiswap],
-    [lua, balancer]
+    [lua, balancer],
+    // Uniswap V3
+    [uniswap, uniswapV3],
+    [sushiswap, uniswapV3],
+    [lua, uniswapV3],
+    // [balancer, uniswapV3] // profit function not supported yet for this pair of DEXs
 ]
 
 
@@ -117,7 +128,7 @@ async function initPairsAndRoutes(): Promise<[Map<string, Pair>, Route[]]> {
 
     // logMinProfits(tokens, minProfits)
     
-    const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault) as BalancerVaultContract
+    const vault = await ethers.getContractAt(abi.balancer.vault, cfg.balancer.vault) as BalancerVaultContract
     const pairFactory = new PairFactory(vault)
 
     for (const [dexFrom, dexTo] of exchanges) {
@@ -158,7 +169,7 @@ async function main() {
     const [pairs, routes] = await initPairsAndRoutes()
     console.log(`${pairs.size} pairs and ${routes.length} routes initialized`)
 
-    const vault = await ethers.getContractAt(abi.vault, cfg.balancer.vault) as BalancerVaultContract
+    const vault = await ethers.getContractAt(abi.balancer.vault, cfg.balancer.vault) as BalancerVaultContract
     
     // TODO: fix async processing
     ethers.provider.on('block', async function (blockNumber) {
@@ -173,6 +184,9 @@ async function main() {
             } if (pair instanceof BalancerPair) {
                 const [, [balance0, balance1], lastChangeBlock] = await vault.getPoolTokens(pair.poolId)
                 pair.updateReserves(balance0, balance1, blockNumber)
+            } if (pair instanceof UniswapV3Pool) {
+                // TODO: 1. get updated contract data: pair.contract.slot0()
+                // TODO: 2. update pool internal data: pair.updateReserves(...)
             }
             // logPair(pair)
         }))

@@ -25,6 +25,8 @@
     "@types/chai": "^4.2.21",
     "@types/mocha": "^8.2.3",
     "@types/node": "^16.3.2",
+    "@uniswap/sdk-core": "^3.0.1",
+    "@uniswap/v3-sdk": "^3.3.1",
     "bignumber.js": "^9.0.1",
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
