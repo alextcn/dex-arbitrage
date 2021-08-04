@@ -1,7 +1,7 @@
 import { BigNumber } from "ethers"
 import { addDecimals, fromBN, subDecimals, toBN } from "./utils/bn"
 import { bmath } from "@balancer-labs/sor"
-import { BalancerPool, UniswapPool } from "./pool"
+import { BalancerPool, UniswapV2Pool } from "./pool"
 
 export interface Trade {
     amountBorrow: BigNumber
@@ -12,7 +12,7 @@ export interface Trade {
 
 // TODO: improve conversion between BN and BigNumber to improve precision
 // Returns profit of flashswap between Uniswap and Balancer.
-export function flashswapProfitUniToBalancer(pairUni: UniswapPool, pairBal: BalancerPool, amountBorrow: BigNumber, isFirstToken: boolean): BigNumber {
+export function flashswapProfitUniToBalancer(pairUni: UniswapV2Pool, pairBal: BalancerPool, amountBorrow: BigNumber, isFirstToken: boolean): BigNumber {
     if (!pairUni.hasValue() || !pairBal.hasValue()) throw 'Pairs must have balances'
     if (pairUni.token0.address != pairBal.token0.address ||
         pairUni.token1.address != pairBal.token1.address) throw 'Pairs have different tokens'
@@ -42,7 +42,7 @@ export function flashswapProfitUniToBalancer(pairUni: UniswapPool, pairBal: Bala
 // Returns maximum potential profit of flashswap: borrowing amountBorrow tokens on DEX0,
 // swapping it on another tokens on DEX1 to return debt, and leaving rest of borrowed tokens as a profit.
 // Actual profit could be different due to frontrunning.
-export function flashswapProfitUniToUni(pair0: UniswapPool, pair1: UniswapPool, amountBorrow: BigNumber, isFirstToken: boolean): BigNumber {
+export function flashswapProfitUniToUni(pair0: UniswapV2Pool, pair1: UniswapV2Pool, amountBorrow: BigNumber, isFirstToken: boolean): BigNumber {
     if (!pair0.hasValue() || !pair1.hasValue()) throw 'Pairs must have balances'
     if (pair0.token0.address != pair1.token0.address ||
         pair0.token1.address != pair1.token1.address) throw 'Pairs have different tokens'
@@ -64,7 +64,7 @@ export function flashswapProfitUniToUni(pair0: UniswapPool, pair1: UniswapPool, 
 // move less liquid market to more luquid market.
 // 
 // trade_size(PI%) ~= (pool_size * PI%) / 2
-export function tradeSizeUniToUni(pair0: UniswapPool, pair1: UniswapPool) {
+export function tradeSizeUniToUni(pair0: UniswapV2Pool, pair1: UniswapV2Pool) {
     if (!pair0.hasValue() || !pair1.hasValue()) throw 'Pairs must have balances'
 
     const ONE = BigNumber.from('10').pow(18)
@@ -98,7 +98,7 @@ export function tradeSizeUniToUni(pair0: UniswapPool, pair1: UniswapPool) {
     return { amountBorrow: amountBorrow, firstToken: firstToken, profit: profit }
 }
 
-export function tradeSizeUniToBalancer(pairUni: UniswapPool, pairBal: BalancerPool) {
+export function tradeSizeUniToBalancer(pairUni: UniswapV2Pool, pairBal: BalancerPool) {
     if (!pairUni.hasValue() || !pairBal.hasValue()) throw 'Pairs must have balances'
     if (pairUni.token0.address != pairBal.token0.address ||
         pairUni.token1.address != pairBal.token1.address) throw 'Pairs have different tokens'

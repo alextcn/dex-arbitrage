@@ -1,4 +1,4 @@
-import { BalancerPool, Pool, UniswapPool } from "../pool"
+import { BalancerPool, Pool, UniswapV2Pool } from "../pool"
 import { Route } from "../route"
 import { Trade } from "../trade"
 
@@ -17,7 +17,7 @@ export function logPool(pool: Pool, block: number | undefined = undefined, prefi
 
     if (!pool.hasValue()) {
         s = 'no value'
-    } else if (pool instanceof UniswapPool) {
+    } else if (pool instanceof UniswapV2Pool) {
         s = `balance0 = ${pool.token0.format(pool.balance0!, true)}, balance1 = ${pool.token1.format(pool.balance1!, true)}`
     } else if (pool instanceof BalancerPool) {
         s = `balance0 = ${pool.token0.format(pool.balance0!, true)}, balance1 = ${pool.token1.format(pool.balance1!, true)}`

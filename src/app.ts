@@ -1,10 +1,10 @@
-import { Balancer, Uniswap, UniswapV3 } from "./dex"
+import { Balancer, UniswapV2, UniswapV3 } from "./dex"
 import { logMinProfits, objectsToTokens, runApp } from "./utils/utils"
 import cfg from '../config.json'
 import tokenList from '../tokens.json'
 import { ethers } from "hardhat"
 import { buildRoute, Route } from "./route"
-import { BalancerPool, Pool, PoolFactory, UniswapPool, UniswapV3Pool } from "./pool"
+import { BalancerPool, Pool, PoolFactory, UniswapV2Pool, UniswapV3Pool } from "./pool"
 import { BalancerVaultContract } from "./contracts"
 import abi from '../abi.json'
 import { logPool, logTrade } from "./utils/app"
@@ -75,19 +75,19 @@ const routeAddresses: string[][] = [
 ]
 
 
-const uniswap: Uniswap = {
+const uniswap: UniswapV2 = {
     name: 'Uniswap',
     protocol: 'UniswapV2',
     factory: cfg.uni.factory,
     router: cfg.uni.router
 }
-const sushiswap: Uniswap = {
+const sushiswap: UniswapV2 = {
     name: 'Sushiswap',
     protocol: 'UniswapV2',
     factory: cfg.sushi.factory,
     router: cfg.sushi.router
 }
-const lua: Uniswap = {
+const lua: UniswapV2 = {
     name: 'LuaSwap',
     protocol: 'UniswapV2',
     factory: cfg.lua.factory,
@@ -178,7 +178,7 @@ async function main() {
         // update pools
         await Promise.all(Array.from(pools).map(async ([, pool]) => {
             // TODO: what block number to pass?
-            if (pool instanceof UniswapPool) {
+            if (pool instanceof UniswapV2Pool) {
                 const [reserve0, reserve1, blockTimestampLast] = await pool.contract.getReserves()
                 pool.updateReserves(reserve0, reserve1, blockNumber)
             } if (pool instanceof BalancerPool) {

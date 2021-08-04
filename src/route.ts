@@ -1,4 +1,4 @@
-import { BalancerPool, Pool, UniswapPool } from "./pool"
+import { BalancerPool, Pool, UniswapV2Pool } from "./pool"
 import { Token } from "./token"
 import { Trade, tradeSizeUniToBalancer, tradeSizeUniToUni } from "./trade"
 
@@ -26,10 +26,10 @@ export abstract class Route {
 }
 
 export class UniToUniRoute extends Route {
-    readonly poolFrom: UniswapPool
-    readonly poolTo: UniswapPool
+    readonly poolFrom: UniswapV2Pool
+    readonly poolTo: UniswapV2Pool
 
-    constructor(poolFrom: UniswapPool, poolTo: UniswapPool) {
+    constructor(poolFrom: UniswapV2Pool, poolTo: UniswapV2Pool) {
         super(poolFrom, poolTo)
         
         this.poolFrom = poolFrom
@@ -43,10 +43,10 @@ export class UniToUniRoute extends Route {
 }
 
 export class UniToBalRoute extends Route {
-    readonly poolFrom: UniswapPool
+    readonly poolFrom: UniswapV2Pool
     readonly poolTo: BalancerPool
 
-    constructor(poolFrom: UniswapPool, poolTo: BalancerPool) {
+    constructor(poolFrom: UniswapV2Pool, poolTo: BalancerPool) {
         super(poolFrom, poolTo)
 
         this.poolFrom = poolFrom
@@ -61,7 +61,7 @@ export class UniToBalRoute extends Route {
 export function buildRoute(poolFrom: Pool, poolTo: Pool): Route {
     if (poolFrom instanceof BalancerPool) throw 'Routes from BalancerV2 aren\'t supported'
     
-    return poolTo instanceof UniswapPool
-        ? new UniToUniRoute(poolFrom as UniswapPool, poolTo)
-        : new UniToBalRoute(poolFrom as UniswapPool, poolTo as BalancerPool)
+    return poolTo instanceof UniswapV2Pool
+        ? new UniToUniRoute(poolFrom as UniswapV2Pool, poolTo)
+        : new UniToBalRoute(poolFrom as UniswapV2Pool, poolTo as BalancerPool)
 }

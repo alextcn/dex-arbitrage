@@ -1,7 +1,7 @@
 import { BigNumber, Contract } from "ethers"
 import { ethers } from "hardhat"
 import { BalancerPoolContract, BalancerVaultContract, UniswapPairContract, UniV3PoolContract } from "./contracts"
-import { Balancer, DEX, Uniswap, UniswapV3 } from "./dex"
+import { Balancer, DEX, UniswapV2, UniswapV3 } from "./dex"
 import { Token } from "./token"
 import { getPoolId } from "./utils/balancer"
 import abi from "../abi.json"
@@ -40,12 +40,12 @@ export abstract class Pool {
 }
 
 
-export class UniswapPool extends Pool {
+export class UniswapV2Pool extends Pool {
     contract: UniswapPairContract
     balance0: BigNumber | undefined
     balance1: BigNumber | undefined
     
-    constructor(dex: Uniswap, token0: Token, token1: Token, contract: UniswapPairContract) {
+    constructor(dex: UniswapV2, token0: Token, token1: Token, contract: UniswapPairContract) {
         super(dex, token0, token1, contract)
 
         this.contract = contract
@@ -177,14 +177,14 @@ export class PoolFactory {
             )
     }
 
-    async makeUniswapPool(dex: Uniswap, token0: Token, token1: Token): Promise<UniswapPool | undefined> {
+    async makeUniswapPool(dex: UniswapV2, token0: Token, token1: Token): Promise<UniswapV2Pool | undefined> {
         // TODO: cache factory?
         var f = await ethers.getContractAt('@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol:IUniswapV2Factory', dex.factory)
         var pairAddress = await f.getPair(token0.address, token1.address)
         if (pairAddress === '0x0000000000000000000000000000000000000000') return
         
         const c = await ethers.getContractAt('@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol:IUniswapV2Pair', pairAddress) as UniswapPairContract
-        return new UniswapPool(dex, token0, token1, c)
+        return new UniswapV2Pool(dex, token0, token1, c)
     }
 
     async makeUniswapV3Pool(dex: UniswapV3, token0: Token, token1: Token): Promise<UniswapV3Pool | undefined> {

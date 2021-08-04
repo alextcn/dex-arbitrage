@@ -1,4 +1,4 @@
-export interface Uniswap {
+export interface UniswapV2 {
     name: string
     protocol: 'UniswapV2'
     factory: string
@@ -15,7 +15,7 @@ export interface UniswapV3 {
     name: string
     protocol: 'UniswapV3'
     factory: string
-    fee: 3000 // only scan for 0.3%-fee pools atm
+    fee: number
 }
 
-export type DEX = Uniswap | Balancer | UniswapV3
+export type DEX = UniswapV2 | Balancer | UniswapV3

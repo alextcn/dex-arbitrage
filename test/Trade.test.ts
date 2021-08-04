@@ -5,15 +5,15 @@ import { flashswapProfitUniToUni, flashswapProfitUniToBalancer, tradeSizeUniToUn
 import { BN, fromBN, toBN } from "../src/utils/bn"
 import { bmath } from "@balancer-labs/sor"
 import { uniPrice } from '../src/utils/dex'
-import { DEX, Uniswap, Balancer } from '../src/dex'
-import { BalancerPair, UniswapPair } from '../src/pair'
+import { DEX, UniswapV2, Balancer } from '../src/dex'
+import { BalancerPool, UniswapV2Pool } from '../src/pool'
 import cfg from '../config.json'
 import { Token } from "../src/token"
 import { BalancerPoolContract, UniswapPairContract } from "../src/contracts"
-import { logPair } from "../src/utils/app"
+import { logPool } from "../src/utils/app"
 
 
-const uniswap: Uniswap = {
+const uniswap: UniswapV2 = {
     name: 'Uniswap',
     protocol: 'UniswapV2',
     factory: cfg.uni.factory,
@@ -30,25 +30,25 @@ const USDC = new Token('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', 'USD Coin',
 
 
 describe("Trade USDC/WETH", function() {
-    const uniPair0 = new UniswapPair(uniswap, USDC, WETH, {} as UniswapPairContract)
+    const uniPair0 = new UniswapV2Pool(uniswap, USDC, WETH, {} as UniswapPairContract)
     uniPair0.updateReserves(BigNumber.from('166527132537660'), BigNumber.from('71672677442879327142582'), 1)
 
-    const uniPair1 = new UniswapPair(uniswap, USDC, WETH, {} as UniswapPairContract)
+    const uniPair1 = new UniswapV2Pool(uniswap, USDC, WETH, {} as UniswapPairContract)
     uniPair1.updateReserves(BigNumber.from('32785426507532'), BigNumber.from('14534535488575865428516'), 1)
 
 
     const w0 = BigNumber.from('400000000000000000') // 40%
     const w1 = BigNumber.from('600000000000000000') // 60%
     const fee = BigNumber.from('2900000000000000') // 0.29%
-    const balPool = new BalancerPair(balancer, USDC, WETH, '0x0b09dea16768f0799065c475be02919503cb2a3500020000000000000000001a', w0, w1, fee, {} as BalancerPoolContract)    
+    const balPool = new BalancerPool(balancer, USDC, WETH, '0x0b09dea16768f0799065c475be02919503cb2a3500020000000000000000001a', w0, w1, fee, {} as BalancerPoolContract)    
     balPool.updateReserves(BigNumber.from('32353316570431'), BigNumber.from('21514991285824735138779'), 1)
     
     const amountBorrowUSDC = BigNumber.from('200000000000') // 200,000 USDC
     const amountBorrowWETH = BigNumber.from('500000000000000000000') // 500 WETH
     
-    logPair(uniPair0)
-    logPair(uniPair1)
-    logPair(balPool)
+    logPool(uniPair0)
+    logPool(uniPair1)
+    logPool(balPool)
 
     it('uni->uni usdc profit', async function () {
         const profit = flashswapProfitUniToUni(uniPair0, uniPair1, amountBorrowUSDC, true)
@@ -61,7 +61,7 @@ describe("Trade USDC/WETH", function() {
     })
 
     it('profit same', async function () {
-        const balCopyPool = new BalancerPair(balancer, uniPair1.token0, uniPair1.token1, 'ZERO_ID',
+        const balCopyPool = new BalancerPool(balancer, uniPair1.token0, uniPair1.token1, 'ZERO_ID',
             BigNumber.from('500000000000000000'), BigNumber.from('500000000000000000'), 
             BigNumber.from('3000000000000000'), {} as BalancerPoolContract
         )
