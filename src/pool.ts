@@ -6,12 +6,11 @@ import { Token } from "./token"
 import { getPoolId } from "./utils/balancer"
 import abi from "../abi.json"
 import { bmath } from "@balancer-labs/sor"
-import { addDecimals, BN, fromBN, subDecimals, toBN } from "./utils/bn"
-import { logPair } from "./utils/app"
-import { Pool } from "@uniswap/v3-sdk"
+import { BN, fromBN, toBN } from "./utils/bn"
+import { Pool as UniV3Pool } from "@uniswap/v3-sdk"
 
 
-export abstract class Pair {
+export abstract class Pool {
     readonly id: string
     readonly dex: DEX
     readonly token0: Token
@@ -24,7 +23,7 @@ export abstract class Pair {
     abstract price1: () => BigNumber | undefined
 
     constructor(dex: DEX, token0: Token, token1: Token, contract: Contract) {
-        this.id = Pair.id(dex.name, token0.address, token1.address)
+        this.id = Pool.id(dex.name, token0.address, token1.address)
         this.dex = dex
         this.token0 = token0
         this.token1 = token1
@@ -41,7 +40,7 @@ export abstract class Pair {
 }
 
 
-export class UniswapPair extends Pair {
+export class UniswapPool extends Pool {
     contract: UniswapPairContract
     balance0: BigNumber | undefined
     balance1: BigNumber | undefined
@@ -71,7 +70,7 @@ export class UniswapPair extends Pair {
     }
 }
 
-export class BalancerPair extends Pair {
+export class BalancerPool extends Pool {
     contract: BalancerPoolContract
     poolId: string
     weight0: BigNumber
@@ -119,10 +118,10 @@ export class BalancerPair extends Pair {
     }
 }
 
-export class UniswapV3Pool extends Pair {
+export class UniswapV3Pool extends Pool {
     contract: UniV3PoolContract
     // TODO: add all props required to calc flashswap
-    pool: Pool | undefined
+    pool: UniV3Pool | undefined
     // balance0: BigNumber | undefined
     // balance1: BigNumber | undefined
     
@@ -162,33 +161,33 @@ export class UniswapV3Pool extends Pair {
 
 
 
-export class PairFactory {
+export class PoolFactory {
     _vault: BalancerVaultContract
 
     constructor(vault: BalancerVaultContract) {
         this._vault = vault
     }
 
-    async makePair(dex: DEX, token0: Token, token1: Token): Promise<Pair | undefined> {
+    async makePool(dex: DEX, token0: Token, token1: Token): Promise<Pool | undefined> {
         return dex.protocol === 'UniswapV2'
-            ? this.makeUniswapPair(dex, token0, token1)
+            ? this.makeUniswapPool(dex, token0, token1)
             : (dex.protocol === 'BalancerV2'
                 ? this.makeBalancerPool(dex, token0, token1)
-                : this.makeUniswapV3Pair(dex, token0, token1)
+                : this.makeUniswapV3Pool(dex, token0, token1)
             )
     }
 
-    async makeUniswapPair(dex: Uniswap, token0: Token, token1: Token): Promise<UniswapPair | undefined> {
+    async makeUniswapPool(dex: Uniswap, token0: Token, token1: Token): Promise<UniswapPool | undefined> {
         // TODO: cache factory?
         var f = await ethers.getContractAt('@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol:IUniswapV2Factory', dex.factory)
         var pairAddress = await f.getPair(token0.address, token1.address)
         if (pairAddress === '0x0000000000000000000000000000000000000000') return
         
         const c = await ethers.getContractAt('@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol:IUniswapV2Pair', pairAddress) as UniswapPairContract
-        return new UniswapPair(dex, token0, token1, c)
+        return new UniswapPool(dex, token0, token1, c)
     }
 
-    async makeUniswapV3Pair(dex: UniswapV3, token0: Token, token1: Token): Promise<UniswapV3Pool | undefined> {
+    async makeUniswapV3Pool(dex: UniswapV3, token0: Token, token1: Token): Promise<UniswapV3Pool | undefined> {
         // TODO: cache factory?
         var f = await ethers.getContractAt(abi.uniV3.factory, dex.factory)
 
@@ -199,7 +198,7 @@ export class PairFactory {
         return new UniswapV3Pool(dex, token0, token1, c)
     }
 
-    async makeBalancerPool(dex: Balancer, token0: Token, token1: Token): Promise<BalancerPair | undefined> {
+    async makeBalancerPool(dex: Balancer, token0: Token, token1: Token): Promise<BalancerPool | undefined> {
         const poolId = getPoolId(token0.address, token1.address)
         if (!poolId) return
 
@@ -210,7 +209,7 @@ export class PairFactory {
         const [weight0, weight1] = await pool.getNormalizedWeights()
         const fee = await pool.getSwapFeePercentage()
         
-        return new BalancerPair(dex, token0, token1, poolId, weight0, weight1, fee, pool)
+        return new BalancerPool(dex, token0, token1, poolId, weight0, weight1, fee, pool)
     }
     
 }

@@ -4,10 +4,10 @@ import cfg from '../config.json'
 import tokenList from '../tokens.json'
 import { ethers } from "hardhat"
 import { buildRoute, Route } from "./route"
-import { BalancerPair, Pair, PairFactory, UniswapPair, UniswapV3Pool } from "./pair"
+import { BalancerPool, Pool, PoolFactory, UniswapPool, UniswapV3Pool } from "./pool"
 import { BalancerVaultContract } from "./contracts"
 import abi from '../abi.json'
-import { logPair, logTrade } from "./utils/app"
+import { logPool, logTrade } from "./utils/app"
 import { BigNumber } from "ethers"
 
 
@@ -121,15 +121,15 @@ const exchanges = [
 ]
 
 
-async function initPairsAndRoutes(): Promise<[Map<string, Pair>, Route[]]> {
+async function initPoolsAndRoutes(): Promise<[Map<string, Pool>, Route[]]> {
     const tokens = objectsToTokens(Object.values(tokenList))
-    const pairs: Map<string, Pair> = new Map()
+    const pools: Map<string, Pool> = new Map()
     const routes: Route[] = []
 
     // logMinProfits(tokens, minProfits)
     
     const vault = await ethers.getContractAt(abi.balancer.vault, cfg.balancer.vault) as BalancerVaultContract
-    const pairFactory = new PairFactory(vault)
+    const poolFactory = new PoolFactory(vault)
 
     for (const [dexFrom, dexTo] of exchanges) {
         await Promise.all(routeAddresses.map(async ([_token0, _token1]) => {
@@ -137,37 +137,37 @@ async function initPairsAndRoutes(): Promise<[Map<string, Pair>, Route[]]> {
             const token0 = tokens.get(t0)!
             const token1 = tokens.get(t1)!
             
-            const idFrom = Pair.id(dexFrom.name, token0.address, token1.address)
-            if (!pairs.has(idFrom)) {
-                const pair = await pairFactory.makePair(dexFrom, token0, token1)
-                if (pair) pairs.set(idFrom, pair)
-                else console.log(`[-] [${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} – no pair for ${dexFrom.name}`)
+            const idFrom = Pool.id(dexFrom.name, token0.address, token1.address)
+            if (!pools.has(idFrom)) {
+                const pool = await poolFactory.makePool(dexFrom, token0, token1)
+                if (pool) pools.set(idFrom, pool)
+                else console.log(`[-] [${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} – no pair on ${dexFrom.name}`)
             }
-            const pairFrom = pairs.get(idFrom)
+            const poolFrom = pools.get(idFrom)
 
-            const idTo = Pair.id(dexTo.name, token0.address, token1.address)
-            if (!pairs.has(idTo)) {
-                const pair = await pairFactory.makePair(dexTo, token0, token1)
-                if (pair) pairs.set(idTo, pair)
-                else console.log(`[-] [${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} – no pair for ${dexTo.name}`)
+            const idTo = Pool.id(dexTo.name, token0.address, token1.address)
+            if (!pools.has(idTo)) {
+                const pool = await poolFactory.makePool(dexTo, token0, token1)
+                if (pool) pools.set(idTo, pool)
+                else console.log(`[-] [${dexFrom.name}->${dexTo.name}] ${token0.symbol}/${token1.symbol} – no pair on ${dexTo.name}`)
             }
-            const pairTo = pairs.get(idTo)
+            const poolTo = pools.get(idTo)
 
-            if (!pairFrom || !pairTo) return
+            if (!poolFrom || !poolTo) return
             
-            const route = buildRoute(pairFrom, pairTo)
+            const route = buildRoute(poolFrom, poolTo)
             routes.push(route)
             
             console.log(`[+] ${route.name()}`)
         }))
         
     }
-    return [pairs, routes]
+    return [pools, routes]
 }
 
 async function main() {
-    const [pairs, routes] = await initPairsAndRoutes()
-    console.log(`${pairs.size} pairs and ${routes.length} routes initialized`)
+    const [pools, routes] = await initPoolsAndRoutes()
+    console.log(`${pools.size} pools and ${routes.length} routes initialized`)
 
     const vault = await ethers.getContractAt(abi.balancer.vault, cfg.balancer.vault) as BalancerVaultContract
     
@@ -175,20 +175,20 @@ async function main() {
     ethers.provider.on('block', async function (blockNumber) {
         console.log(`#${blockNumber} ---------------------------`)
 
-        // update pairs
-        await Promise.all(Array.from(pairs).map(async ([, pair]) => {
+        // update pools
+        await Promise.all(Array.from(pools).map(async ([, pool]) => {
             // TODO: what block number to pass?
-            if (pair instanceof UniswapPair) {
-                const [reserve0, reserve1, blockTimestampLast] = await pair.contract.getReserves()
-                pair.updateReserves(reserve0, reserve1, blockNumber)
-            } if (pair instanceof BalancerPair) {
-                const [, [balance0, balance1], lastChangeBlock] = await vault.getPoolTokens(pair.poolId)
-                pair.updateReserves(balance0, balance1, blockNumber)
-            } if (pair instanceof UniswapV3Pool) {
-                // TODO: 1. get updated contract data: pair.contract.slot0()
-                // TODO: 2. update pool internal data: pair.updateReserves(...)
+            if (pool instanceof UniswapPool) {
+                const [reserve0, reserve1, blockTimestampLast] = await pool.contract.getReserves()
+                pool.updateReserves(reserve0, reserve1, blockNumber)
+            } if (pool instanceof BalancerPool) {
+                const [, [balance0, balance1], lastChangeBlock] = await vault.getPoolTokens(pool.poolId)
+                pool.updateReserves(balance0, balance1, blockNumber)
+            } if (pool instanceof UniswapV3Pool) {
+                // TODO: 1. get updated contract data: pool.contract.slot0()
+                // TODO: 2. update pool internal data: pool.updateReserves(...)
             }
-            // logPair(pair)
+            // logPool(pool)
         }))
 
         // check routes for profitable trades
@@ -205,8 +205,8 @@ async function main() {
         // log profitable trades
         trades.forEach((x) => {
             logTrade(blockNumber, x.route, x.trade)
-            logPair(x.route.pairFrom, undefined, '                       ')
-            logPair(x.route.pairTo, undefined, '                       ')
+            logPool(x.route.poolFrom, undefined, '                       ')
+            logPool(x.route.poolTo, undefined, '                       ')
             console.log('————————————————————————')
         })
 
