@@ -8,6 +8,7 @@ import abi from "../abi.json"
 import { bmath } from "@balancer-labs/sor"
 import { BN, fromBN, toBN } from "./utils/bn"
 import { Pool as UniV3Pool } from "@uniswap/v3-sdk"
+import cfg from '../config.json'
 
 
 export abstract class Pool {
@@ -162,10 +163,8 @@ export class UniswapV3Pool extends Pool {
 
 
 export class PoolFactory {
-    _vault: BalancerVaultContract
-
-    constructor(vault: BalancerVaultContract) {
-        this._vault = vault
+    
+    constructor() {
     }
 
     async makePool(dex: DEX, token0: Token, token1: Token): Promise<Pool | undefined> {
@@ -199,10 +198,12 @@ export class PoolFactory {
     }
 
     async makeBalancerPool(dex: Balancer, token0: Token, token1: Token): Promise<BalancerPool | undefined> {
+        // TODO: cache vault
+        const vault = await ethers.getContractAt(abi.balancer.vault, cfg.balancer.vault) as BalancerVaultContract
         const poolId = getPoolId(token0.address, token1.address)
         if (!poolId) return
 
-        const [poolAddress] = await this._vault.getPool(poolId)
+        const [poolAddress] = await vault.getPool(poolId)
         if (poolAddress === '0x0000000000000000000000000000000000000000') return
         
         const pool = await ethers.getContractAt(abi.balancer.pool, poolAddress) as BalancerPoolContract

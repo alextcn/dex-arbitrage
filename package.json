@@ -30,7 +30,7 @@
     "bignumber.js": "^9.0.1",
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
-    "ethers": "^5.3.1",
+    "ethers": "^5.4.3",
     "hardhat": "^2.4.1",
     "ts-node": "^10.1.0",
     "tslint": "^6.1.3",
